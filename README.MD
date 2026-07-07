@@ -2,6 +2,8 @@
 
 A lightweight project management assistant that converts raw meeting notes into structured tasks, detects whether notes update existing tasks, and lets the user confirm changes before they are saved.
 
+[![Watch the demo](https://drive.google.com/uc?export=view&id=1-Lwi9tS5t37_fU4HZN-pmO30i1kNlTrr)](https://drive.google.com/file/d/1GhVG7Z5D5hMqgfXexZ42KPx9ZBablEBG/view?usp=sharing)
+
 ## Project Requirements
 
 - Accept unstructured meeting notes or task descriptions as input.
