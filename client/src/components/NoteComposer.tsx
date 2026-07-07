@@ -13,9 +13,7 @@ export function NoteComposer({
   onExtract,
   isLoading,
 }: NoteComposerProps) {
-  const demoText = `Launch the new onboarding experience. Owner: Maya. Due date: 2026-07-18. Priority: High.
-
-Review the quarterly roadmap with the product team. Owner: Daniel. Due date: 2026-07-20. Priority: Medium.`;
+  const demoText = `Launch the new onboarding experience. Owner: Maya. Due date: 2026-07-18. Priority: High.`;
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();

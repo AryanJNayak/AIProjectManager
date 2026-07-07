@@ -6,7 +6,7 @@ from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from db.database import get_db
-from models.task import Task, Note, TaskNoteLink
+from models.task import Task, Note, TaskNoteLink, StatusEnum
 from schemas.task_schema import TaskOut, TaskUpdate, Priority, Status, NoteLinkOut
 from services.csv_export import tasks_to_csv
 

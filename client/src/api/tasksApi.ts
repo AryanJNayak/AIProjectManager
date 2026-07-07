@@ -158,11 +158,6 @@ export async function confirmUpdates(
 
 /** PATCH /api/tasks/{id} — apply a TaskDraft to the database. */
 export async function updateTask(taskId: number, updates: TaskDraft): Promise<Task> {
-  try {
-    const payload = taskDraftToSnakeCase(updates);
-    return (await apiClient.patch<Task>(`/tasks/${taskId}`, payload)).data;
-  } catch {
-    const now = new Date().toISOString();
-    return { id: taskId, description: '', priority: 'Medium', status: 'To Do', createdAt: now, updatedAt: now, ...updates } as Task;
-  }
+  const payload = taskDraftToSnakeCase(updates);
+  return (await apiClient.patch<Task>(`/tasks/${taskId}`, payload)).data;
 }
