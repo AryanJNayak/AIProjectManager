@@ -95,13 +95,13 @@ class ExtractResponse(BaseModel):
     proposed_updates: List[ProposedUpdate]
 
 
-class sourcecoderovedUpdate(BaseModel):
+class approvedUpdate(BaseModel):
     task_id: int
     changes: dict
 
 
 class ConfirmRequest(BaseModel):
-    sourcecoderoved: List[sourcecoderovedUpdate]
+    approved: List[approvedUpdate]
 
 
 class ConfirmResponse(BaseModel):

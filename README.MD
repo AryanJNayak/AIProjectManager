@@ -1,106 +1,158 @@
-## Mini AI Project Manager Assistant
+# Mini AI Project Manager Assistant
 
-This tool helps project managers convert unstructured meeting notes or task descriptions into structured, actionable tasks. It automatically infers deadlines, owners, and priority, and provides a simple interface to manage them.
+A lightweight project management assistant that converts raw meeting notes into structured tasks, detects whether notes update existing tasks, and lets the user confirm changes before they are saved.
 
----
+## Project Requirements
 
-## ✨ Features
+- Accept unstructured meeting notes or task descriptions as input.
+- Extract discrete tasks with inferred owners, deadlines, and priorities.
+- Detect whether a note refers to a new task or an existing one.
+- When an existing task appears to be updated, show the proposed diff and ask the user to confirm before applying changes.
+- Allow the user to edit extracted task fields before saving.
+- Display task data in a list with filters and inline editing.
+- Persist tasks and notes in a relational database.
 
-### AI-Powered Task Extraction
-- **Paste & Go**: Drop your raw meeting notes into a text area.
-- **Smart Parsing**: An LLM (Claude/OpenAI) backend extracts discrete tasks.
-- **Automatic Inference**: Automatically assigns due dates (resolving "next Friday"), owners, and priority (High/Medium/Low) from your text.
+## Current Implementation
 
-### Intelligent Reconciliation
-- **Update Detection**: The AI intelligently detects if a new note is an update to an existing task, preventing duplicates.
-- **Confirm Changes**: Proposed updates (e.g., a changed priority or due date) are shown as a clear "diff" for you to approve before they are applied.
+### Backend
+- Python + FastAPI backend in `sourcecode/`.
+- Uses SQLAlchemy models to persist `Task` and `Note` entities to the database.
+- Uses a LangChain extraction pipeline to convert free-form notes into structured task output.
+- Pre-filters open tasks using `rapidfuzz` to identify candidate existing tasks before calling the LLM.
+- The extraction endpoint returns:
+  - `extracted` new task proposals that are not yet stored.
+  - `proposedUpdates` for existing tasks that may need patching.
+- The confirm endpoint applies only user-approved creations and updates.
 
-### Simple Task Management
-- **Unified View**: See all your tasks in a clean, filterable list.
-- **Filters**: Quickly filter tasks by owner, status, or priority.
-- **Inline Editing**: Click any field to edit a task's description, due date, owner, etc., directly in the list.
-- **Status Tracking**: Move tasks between 'To Do', 'In Progress', and 'Done'.
-- **Export**: Download your current task list as a CSV file.
+### Frontend
+- React + Vite frontend located in `client/`.
+- Styled with Tailwind CSS.
+- Provides a note composer for submitting raw meeting notes.
+- Presents extracted tasks and proposed updates to the user for review.
+- Displays task lists with inline editing and filtering.
+- Uses `axios` to communicate with the FastAPI backend.
 
----
+## Architecture
 
-## 🚀 Getting Started
+### High-Level Flow
 
-### Prerequisites
-- **Node.js** (v20 LTS or later)
-- **Python** (v3.12 or later)
-- **MySQL Server** (v8.4 or later)
-- An **Anthropic or OpenAI API Key**
+1. User pastes meeting notes into the frontend.
+2. Frontend posts the text to `/api/extract`.
+3. Backend saves the raw note and fetches open tasks as matching context.
+4. The extraction service builds a prompt with the note and candidate existing tasks.
+5. The LLM returns structured task output classified as `new` or `update`.
+6. The frontend asks the user to confirm or edit the extracted items.
+7. The backend applies confirmed creations and updates via `/api/extract/confirm`.
+8. Tasks are stored in the database and displayed in the UI.
 
-### 1. Backend Setup (FastAPI)
+### Component Breakdown
 
-1.  **Navigate to the backend directory:**
-    ```bash
-    cd backend
-    ```
-2.  **Create a virtual environment and install dependencies:**
-    ```bash
-    python -m venv venv
-    # On Windows
-    .\venv\Scripts\activate
-    # On macOS/Linux
-    source venv/bin/activate
+- `client/`
+  - `src/App.tsx` — main application logic and extraction flow.
+  - `src/api/tasksApi.ts` — API layer for fetching tasks, extracting notes, and confirming changes.
+  - `src/components/` — reusable UI components for notes, tasks, sidebar, and tables.
+- `sourcecode/`
+  - `main.py` — FastAPI app startup and router registration.
+  - `api/extract.py` — extraction + confirm routes.
+  - `api/tasks.py` — task CRUD routes.
+  - `api/notes.py` — note listing route.
+  - `services/extraction_chain.py` — LangChain prompt + model pipeline.
+  - `services/matcher.py` — fuzzy candidate selection for existing tasks.
+  - `models/task.py` — SQLAlchemy `Task` and `Note` models.
+  - `schemas/task_schema.py` — Pydantic schemas for validation and LLM contract.
+  - `db/database.py` — database engine and session setup.
+  - `config.py` — environment configuration.
 
-    pip install -r requirements.txt
-    ```
-3.  **Configure environment variables:**
-    - Create a `.env` file from the example: `copy .env.example .env` (Windows) or `cp .env.example .env` (macOS/Linux).
-    - Edit the `.env` file to add your `DATABASE_URL` and `GOOGLE_API_KEY` (or `OPENAI_API_KEY`).
-4.  **Database Setup:**
-    - Ensure your MySQL server is running.
-    - Create a database named `mini_pm_assistant`.
-    - The tables will be created automatically when the application starts.
-5.  **Run the backend server:**
-    ```bash
-    uvicorn app.main:app --reload
-    ```
-    The API will be live at `http://localhost:8000`.
+## Technologies
 
-### 2. Frontend Setup (React)
+### Backend
+- FastAPI
+- Python 3.12+
+- SQLAlchemy
+- Pydantic
+- LangChain
+- RapidFuzz
+- MySQL (via SQLAlchemy)
+- Uvicorn
 
-1.  **Navigate to the frontend directory:**
-    ```bash
-    cd frontend
-    ```
-2.  **Install dependencies:**
-    ```bash
-    npm install
-    ```
-3.  **Run the frontend development server:**
-    ```bash
-    npm run dev
-    ```
-    The application will be available at `http://localhost:5173`.
+### Frontend
+- React
+- Vite
+- Tailwind CSS
+- Axios
+- TypeScript
 
----
+### AI / Extraction
+- LangChain structured output
+- LLM provider via `GOOGLE_API_KEY` (or other supported model backends)
+- Candidate task reconciliation with fuzzy matching
 
-## 🎨 Frontend Design Notes
+## Setup Commands
 
-The user interface is built with React and styled with Tailwind CSS for a clean and responsive experience.
+### 1. Install backend dependencies
 
-- **Interactivity**: All clickable elements, such as buttons, links, and editable task fields, use `cursor: pointer` to provide clear visual feedback to the user.
-- **Simplicity**: The design prioritizes ease of use, with a minimal layout that focuses on the core workflow: pasting notes and managing the resulting tasks.
-- **Responsiveness**: The UI is designed to be usable across different screen sizes.
+From the repo root:
 
----
+```bash
+python -m venv .venv
+# Windows
+.\.venv\Scripts\activate
+# macOS/Linux
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 
-## 🛠️ API Endpoints
+### 2. Configure environment
 
-The backend provides the following RESTful endpoints that the frontend consumes.
+Create a `.env` file in the repo root with:
 
-| Method | Endpoint              | Description                                                              |
-|--------|-----------------------|--------------------------------------------------------------------------|
-| `POST` | `/api/extract`        | Accepts raw text and returns newly created tasks and proposed updates.   |
-| `POST` | `/api/extract/confirm`| Applies a list of approved updates to existing tasks.                    |
-| `GET` | `/api/tasks`          | Lists all tasks, with support for filtering.                             |
-| `GET` | `/api/tasks/{id}`     | Retrieves a single task by its ID.                                       |
-| `PATCH`| `/api/tasks/{id}`     | Edits a task's fields (e.g., status, priority).                          |
-| `DELETE`| `/api/tasks/{id}`     | Deletes a task.                                                          |
-| `GET` | `/api/tasks/export`   | Exports the current (and possibly filtered) list of tasks to a CSV file. |
+```env
+DATABASE_URL=mysql://user:password@localhost/mini_pm_assistant
+GOOGLE_API_KEY=your_api_key_here
+CORS_ORIGINS=http://localhost:5173
+```
 
-You can explore the API interactively by visiting `http://localhost:8000/docs` while the backend is running.
+### 3. Run the backend
+
+```bash
+python .\sourcecode\main.py
+```
+
+or with Uvicorn:
+
+```bash
+uvicorn sourcecode.main:app --reload
+```
+
+### 4. Install frontend dependencies
+
+```bash
+cd client
+npm install
+```
+
+### 5. Run the frontend
+
+```bash
+npm run dev
+```
+
+Open the app at the address shown by Vite (typically `http://localhost:5173`).
+
+## API Endpoints
+
+| Method | Endpoint              | Purpose |
+|---|---|---|
+| POST | `/api/extract` | Extract tasks from raw notes and propose updates. |
+| POST | `/api/extract/confirm` | Save confirmed new tasks and apply approved updates. |
+| GET | `/api/tasks` | List tasks. |
+| GET | `/api/tasks/{id}` | Retrieve a single task. |
+| PATCH | `/api/tasks/{id}` | Update a task. |
+| DELETE | `/api/tasks/{id}` | Delete a task. |
+| GET | `/api/tasks/export` | Export tasks as CSV. |
+| GET | `/api/notes` | List saved note submissions with task counts. |
+
+## Notes
+
+- The frontend currently uses a confirmation/edit flow for extracted tasks, so the user can review and modify extracted output before saving.
+- The backend reconciles new notes against existing open tasks and avoids duplicate task creation by identifying updates to previous work.

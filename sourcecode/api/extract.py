@@ -105,11 +105,11 @@ def confirm_updates(payload: ConfirmRequest, db: Session = Depends(get_db)):
     """
     updated: list[TaskOut] = []
 
-    for sourcecoderoved in payload.sourcecoderoved:
-        task = db.query(Task).filter(Task.id == sourcecoderoved.task_id).first()
+    for approved in payload.approved:
+        task = db.query(Task).filter(Task.id == approved.task_id).first()
         if not task:
             continue
-        for field, value in sourcecoderoved.changes.items():
+        for field, value in approved.changes.items():
             if hasattr(task, field):
                 setattr(task, field, value)
         db.commit()

@@ -7,70 +7,11 @@ const apiClient = axios.create({
 });
 
 const mockTasks: Task[] = [
-  {
-    id: 1,
-    title: 'Prepare Q3 roadmap',
-    description: 'Align leadership priorities and confirm milestones.',
-    owner: 'Ava',
-    priority: 'High',
-    status: 'In Progress',
-    dueDate: '2026-07-10',
-    source: 'Meeting notes',
-    createdAt: '2026-07-01T09:12:00Z',
-    updatedAt: '2026-07-05T14:40:00Z',
-  },
-  {
-    id: 2,
-    title: 'Review client onboarding',
-    description: 'Check handoff items and close the last blockers.',
-    owner: 'Noah',
-    priority: 'Medium',
-    status: 'To Do',
-    dueDate: '2026-07-12',
-    source: 'Weekly sync',
-    createdAt: '2026-07-02T11:30:00Z',
-    updatedAt: '2026-07-02T11:30:00Z',
-  },
-  {
-    id: 3,
-    title: 'Prepare launch checklist',
-    description: 'Confirm release dependencies and training materials.',
-    owner: 'Lina',
-    priority: 'Low',
-    status: 'Done',
-    dueDate: '2026-07-05',
-    source: 'Planning doc',
-    createdAt: '2026-06-28T08:00:00Z',
-    updatedAt: '2026-07-04T17:05:00Z',
-  },
-  {
-    id: 4,
-    title: 'Draft partner outreach email',
-    description: 'No hard deadline yet -- waiting on legal sign-off.',
-    owner: 'Ava',
-    priority: 'Medium',
-    status: 'To Do',
-    source: 'Slack thread',
-    createdAt: '2026-07-03T10:15:00Z',
-    updatedAt: '2026-07-03T10:15:00Z',
-  },
+  
 ];
 
 const mockNotes: NoteEntry[] = [
-  {
-    id: 1,
-    rawText:
-      "Sarah's Q3 report is now high priority, due next Monday. John needs to review the budget urgently.",
-    createdAt: '2026-07-05T14:40:00Z',
-    taskCount: 2,
-  },
-  {
-    id: 2,
-    rawText:
-      'Team sync: Lina to finalize the launch checklist by Friday. No update needed on onboarding yet.',
-    createdAt: '2026-07-04T17:05:00Z',
-    taskCount: 1,
-  },
+  
 ];
 
 function buildMockExtraction(text: string): ExtractionResponse {
