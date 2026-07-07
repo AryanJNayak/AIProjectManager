@@ -103,8 +103,7 @@ export function TaskTable({
               className="border-b border-slate-800/60 last:border-0 hover:bg-slate-800/30"
             >
               <td className="max-w-xs px-4 py-3">
-                <p className="truncate font-medium text-slate-100">{task.title}</p>
-                <p className="truncate text-xs text-slate-500">{task.description}</p>
+                <p className="truncate font-medium text-slate-100">{task.description}</p>
               </td>
               <td className="px-4 py-3 text-slate-300">{task.owner || '—'}</td>
               <td className="px-4 py-3">

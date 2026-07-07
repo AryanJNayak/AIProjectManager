@@ -1,6 +1,6 @@
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -17,15 +17,17 @@ def list_tasks(
     owner: Optional[str] = None,
     status: Optional[Status] = None,
     priority: Optional[Priority] = None,
+    skip: int = Query(0, ge=0, description="Number of records to skip (offset)"),
+    limit: int = Query(100, ge=1, le=500, description="Max records to return (cap 500)"),
     db: Session = Depends(get_db),
 ):
-    """Purpose: Retrieve tasks from the database using optional filters.
+    """Purpose: Retrieve tasks from the database using optional filters and pagination.
 
-    Inputs: The optional owner, status, priority filters, and the database session.
+    Inputs: Optional owner, status, priority filters; skip/limit for pagination; DB session.
 
-    Outputs: A list of task records sorted by most recently created first.
+    Outputs: A paginated list of task records sorted by most recently created first.
 
-    Example: GET /api/tasks?owner=alice&status=open
+    Example: GET /api/tasks?owner=alice&status=open&skip=0&limit=50
     """
     query = db.query(Task)
     if owner:
@@ -34,7 +36,7 @@ def list_tasks(
         query = query.filter(Task.status == status.value)
     if priority:
         query = query.filter(Task.priority == priority.value)
-    return query.order_by(Task.created_at.desc()).all()
+    return query.order_by(Task.created_at.desc()).offset(skip).limit(limit).all()
 
 
 @router.get("/export")
@@ -42,15 +44,17 @@ def export_tasks(
     owner: Optional[str] = None,
     status: Optional[Status] = None,
     priority: Optional[Priority] = None,
+    skip: int = Query(0, ge=0, description="Number of records to skip (offset)"),
+    limit: int = Query(10000, ge=1, le=10000, description="Max records in export (cap 10,000)"),
     db: Session = Depends(get_db),
 ):
     """Purpose: Export filtered tasks as a CSV file for download.
 
-    Inputs: Optional owner, status, and priority filters plus the database session.
+    Inputs: Optional owner, status, priority filters; skip/limit for export range; DB session.
 
     Outputs: A streaming CSV response attached for download.
 
-    Example: GET /api/tasks/export?status=open
+    Example: GET /api/tasks/export?status=open&limit=500
     """
     query = db.query(Task)
     if owner:
@@ -59,7 +63,7 @@ def export_tasks(
         query = query.filter(Task.status == status.value)
     if priority:
         query = query.filter(Task.priority == priority.value)
-    tasks = query.all()
+    tasks = query.order_by(Task.created_at.desc()).offset(skip).limit(limit).all()
 
     buf = tasks_to_csv(tasks)
     return StreamingResponse(

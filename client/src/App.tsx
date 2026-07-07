@@ -39,7 +39,7 @@ export default function App() {
     const query = search.trim().toLowerCase();
     if (!query) return tasks;
     return tasks.filter((task) =>
-      [task.title, task.description, task.owner]
+      [task.description, task.owner]
         .filter(Boolean)
         .some((field) => field!.toLowerCase().includes(query)),
     );

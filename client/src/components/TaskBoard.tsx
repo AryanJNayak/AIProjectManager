@@ -27,8 +27,7 @@ export function TaskBoard({
           <article key={task.id} className="task-card">
             <div className="task-card-top">
               <div>
-                <h3>{task.title}</h3>
-                <p>{task.description}</p>
+                <h3>{task.description}</h3>
               </div>
               <span className={`pill ${task.priority.toLowerCase()}`}>
                 {task.priority}

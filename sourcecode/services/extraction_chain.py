@@ -21,18 +21,46 @@ You will be given:
 For every distinct task-like item you find in the notes, decide:
 - "new": this is a task that doesn't match any candidate -> return description, due_date,
   owner, priority.
-- "update": this clearly refers to one of the candidate tasks (same underlying work,
-  just a changed detail like priority/due date/owner) -> return existing_task_id,
+- "update": this refers to one of the candidate tasks -- the same underlying work with
+  a changed detail (due date, priority, owner, or description) -> return existing_task_id,
   matched_on (brief reason), and changes (ONLY the fields that differ).
 
-Rules:
-- Resolve relative dates ("next Friday", "end of week") into YYYY-MM-DD using today's date.
+--- MATCHING SIGNALS (use these to choose update vs new) ---
+
+Strong signals to choose "update":
+  * The note and a candidate share the SAME project name, feature name, or task entity
+    (e.g. both mention "Project ABC" -> almost certainly the same task).
+  * The note is changing an attribute of work that already exists: a new date, a new owner,
+    a new priority, or a correction.
+  * Language like "updated", "moved", "changed", "now", "instead", "new deadline",
+    "pushed to", "rescheduled" signals an update to existing work.
+  * The note explicitly names an owner who is already associated with a candidate task.
+
+Choose "new" ONLY when:
+  * The note introduces genuinely new work not represented by any candidate.
+  * No candidate shares a project name, person, or task entity with the note.
+
+--- FEW-SHOT EXAMPLES ---
+
+Example A -- deadline change -> UPDATE (not new):
+  Candidate tasks: [id=5, description="Owner of Project ABC", owner="aryan naya"]
+  Note: "The Project ABC deadline is tomorrow."
+  Correct output: action=update, existing_task_id=5,
+                  matched_on="same project name Project ABC",
+                  changes={{"due_date": "<tomorrow YYYY-MM-DD>"}}
+  WRONG: creating a new task called "Meet Project ABC deadline"
+
+Example B -- genuinely new work -> NEW:
+  Candidate tasks: [id=5, description="Owner of Project ABC", owner="aryan naya"]
+  Note: "Need to set up the CI pipeline for the mobile app."
+  Correct output: action=new, description="Set up CI pipeline for mobile app"
+
+--- RULES ---
+- Resolve relative dates ("next Friday", "today", "tomorrow", "end of week") into
+  YYYY-MM-DD using today's date.
 - due_date is null if no date is mentioned or inferable.
 - owner is null if not mentioned (for "new" items).
 - priority is one of High/Medium/Low; infer from urgency language, default Medium.
-- Only mark something "update" if you are reasonably confident it's the same task as a
-  candidate -- when in doubt, prefer "new" (a false "update" match is worse than a
-  duplicate, since the PM confirms updates before they sourcecodely).
 - Return ONLY the structured tasks list, nothing else.
 """
 

@@ -1,8 +1,28 @@
+import re
 from typing import List, Dict, Any
 
 from rapidfuzz import fuzz
 
 SIMILARITY_THRESHOLD = 50  # 0-100 scale; tune based on real usage
+
+
+def _normalize(text: str) -> str:
+    """Purpose: Lowercase and strip punctuation so special characters don't
+    unfairly penalise fuzzy scores.
+
+    Inputs: Raw text string.
+
+    Outputs: Cleaned, lowercase string with punctuation replaced by spaces.
+
+    Example: _normalize("Project 'ABC'!") -> "project  abc "
+    """
+    text = text.lower()
+    # Replace all non-alphanumeric characters (quotes, apostrophes, hyphens …)
+    # with a space so they don't break token boundaries.
+    text = re.sub(r"[^\w\s]", " ", text)
+    # Collapse multiple spaces
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
 
 
 def find_candidate_tasks(
@@ -14,14 +34,36 @@ def find_candidate_tasks(
 
     Outputs: A sorted list of candidate tasks that are likely related to the note.
 
-    Example: find_candidate_tasks("Fix the onboarding flow", open_tasks)
+    Strategy: Three complementary RapidFuzz algorithms are combined so that
+    rephrasing, extra words, apostrophes, and word-order differences don't
+    silently drop real candidates below the threshold:
+
+      - partial_ratio       — substring containment (note contains task description)
+      - token_set_ratio     — same tokens present regardless of order / extra words
+      - token_sort_ratio    — handles re-ordered tokens (e.g. "ABC Project" vs "Project ABC")
+
+    Example: find_candidate_tasks("The Project 'ABC' deadline is tomorrow", open_tasks)
     """
+    note_norm = _normalize(raw_text)
     candidates = []
+
     for task in open_tasks:
-        desc_score = fuzz.partial_ratio(raw_text.lower(), task["description"].lower())
+        desc_norm = _normalize(task["description"])
+
+        # All three ratios on the description; take the best
+        desc_score = max(
+            fuzz.partial_ratio(note_norm, desc_norm),
+            fuzz.token_set_ratio(note_norm, desc_norm),   # best for same words in different order
+            fuzz.token_sort_ratio(note_norm, desc_norm),  # handles rearranged + rephrased text
+        )
+
         owner_score = 0
         if task.get("owner"):
-            owner_score = fuzz.partial_ratio(raw_text.lower(), task["owner"].lower())
+            owner_norm = _normalize(task["owner"])
+            owner_score = max(
+                fuzz.partial_ratio(note_norm, owner_norm),
+                fuzz.token_set_ratio(note_norm, owner_norm),
+            )
 
         score = max(desc_score, owner_score)
         if score >= threshold:

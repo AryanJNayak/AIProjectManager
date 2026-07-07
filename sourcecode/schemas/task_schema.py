@@ -84,15 +84,19 @@ class ExtractRequest(BaseModel):
 
 
 class ProposedUpdate(BaseModel):
-    task_id: int
+    task_id: int = Field(serialization_alias="taskId")
     description: str
     current: dict
     changes: dict
 
+    model_config = ConfigDict(populate_by_name=True)
+
 
 class ExtractResponse(BaseModel):
     created: List[TaskOut]
-    proposed_updates: List[ProposedUpdate]
+    proposed_updates: List[ProposedUpdate] = Field(serialization_alias="proposedUpdates")
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class approvedUpdate(BaseModel):
