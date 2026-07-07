@@ -27,7 +27,7 @@ def find_candidate_tasks(
 
         score = max(desc_score, owner_score)
         if score >= threshold:
-            candidates.sourcecodeend({**task, "match_score": score})
+            candidates.append({**task, "match_score": score})
 
     # Highest-scoring candidates first -- keeps the prompt focused if we later
     # decide to cap the number of candidates sent to the LLM.

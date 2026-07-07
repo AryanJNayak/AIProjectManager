@@ -1,13 +1,12 @@
 from datetime import date
 from typing import List, Dict, Any
 
-from langchain_anthropic import ChatAnthropic
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import OutputFixingParser
 from langchain_core.exceptions import OutputParserException
 
-from sourcecode.config import settings
-from sourcecode.schemas.task_schema import ExtractionResult
+from config import settings
+from schemas.task_schema import ExtractionResult
 
 SYSTEM_PROMPT = """You are an assistant that turns a project manager's raw meeting notes
 into structured tasks.
@@ -58,9 +57,9 @@ def _format_candidates(candidates: List[Dict[str, Any]]) -> str:
 
 
 def build_chain():
-    llm = ChatAnthropic(
-        model="claude-sonnet-4-6",
-        api_key=settings.ANTHROPIC_API_KEY,
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.5-flash",
+        google_api_key=settings.GOOGLE_API_KEY,
         temperature=0,
     )
     structured_llm = llm.with_structured_output(ExtractionResult)

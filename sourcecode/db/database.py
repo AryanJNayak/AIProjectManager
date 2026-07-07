@@ -1,7 +1,8 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-from sourcecode.config import settings
+from config import settings
+
 
 # pool_pre_ping avoids "MySQL server has gone away" errors on idle connections
 engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)

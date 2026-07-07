@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from sourcecode.db.database import get_db
-from sourcecode.models.task import Task
-from sourcecode.schemas.task_schema import TaskOut, TaskUpdate, Priority, Status
-from sourcecode.services.csv_export import tasks_to_csv
+from db.database import get_db
+from models.task import Task
+from schemas.task_schema import TaskOut, TaskUpdate, Priority, Status
+from services.csv_export import tasks_to_csv
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 

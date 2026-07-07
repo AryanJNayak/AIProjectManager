@@ -1,12 +1,26 @@
-import type { TaskFilters as TaskFiltersType, TaskPriority, TaskStatus } from '../types/task';
+import type {
+  TaskFilters as TaskFiltersType,
+  TaskPriority,
+  TaskStatus,
+} from "../types/task";
 
 interface TaskFiltersProps {
   filters: TaskFiltersType;
   onChange: (filters: TaskFiltersType) => void;
 }
 
-const statuses: Array<TaskStatus | 'All'> = ['All', 'To Do', 'In Progress', 'Done'];
-const priorities: Array<TaskPriority | 'All'> = ['All', 'High', 'Medium', 'Low'];
+const statuses: Array<TaskStatus | "All"> = [
+  "All",
+  "To Do",
+  "In Progress",
+  "Done",
+];
+const priorities: Array<TaskPriority | "All"> = [
+  "All",
+  "High",
+  "Medium",
+  "Low",
+];
 
 export function TaskFilters({ filters, onChange }: TaskFiltersProps) {
   return (
@@ -24,7 +38,9 @@ export function TaskFilters({ filters, onChange }: TaskFiltersProps) {
             className="input"
             value={filters.owner}
             placeholder="Search owner"
-            onChange={(event) => onChange({ ...filters, owner: event.target.value })}
+            onChange={(event) =>
+              onChange({ ...filters, owner: event.target.value })
+            }
           />
         </label>
         <label className="field-label">
@@ -32,7 +48,12 @@ export function TaskFilters({ filters, onChange }: TaskFiltersProps) {
           <select
             className="select"
             value={filters.status}
-            onChange={(event) => onChange({ ...filters, status: event.target.value as TaskFiltersType['status'] })}
+            onChange={(event) =>
+              onChange({
+                ...filters,
+                status: event.target.value as TaskFiltersType["status"],
+              })
+            }
           >
             {statuses.map((status) => (
               <option key={status} value={status}>
@@ -46,7 +67,12 @@ export function TaskFilters({ filters, onChange }: TaskFiltersProps) {
           <select
             className="select"
             value={filters.priority}
-            onChange={(event) => onChange({ ...filters, priority: event.target.value as TaskFiltersType['priority'] })}
+            onChange={(event) =>
+              onChange({
+                ...filters,
+                priority: event.target.value as TaskFiltersType["priority"],
+              })
+            }
           >
             {priorities.map((priority) => (
               <option key={priority} value={priority}>

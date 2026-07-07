@@ -3,7 +3,7 @@ from typing import List
 
 import pandas as pd
 
-from sourcecode.models.task import Task
+from models.task import Task
 
 
 def tasks_to_csv(tasks: List[Task]) -> io.StringIO:

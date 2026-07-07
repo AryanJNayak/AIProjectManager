@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from sourcecode.db.database import get_db
-from sourcecode.models.task import Task, Note, StatusEnum
-from sourcecode.schemas.task_schema import (
+from db.database import get_db
+from models.task import Task, Note, StatusEnum
+from schemas.task_schema import (
     ExtractRequest,
     ExtractResponse,
     ProposedUpdate,
@@ -11,8 +11,8 @@ from sourcecode.schemas.task_schema import (
     ConfirmResponse,
     TaskOut,
 )
-from sourcecode.services.matcher import find_candidate_tasks
-from sourcecode.services.extraction_chain import extract_tasks
+from services.matcher import find_candidate_tasks
+from services.extraction_chain import extract_tasks
 
 router = APIRouter(prefix="/api/extract", tags=["extract"])
 
@@ -61,7 +61,7 @@ def run_extraction(payload: ExtractRequest, db: Session = Depends(get_db)):
             db.add(task)
             db.commit()
             db.refresh(task)
-            created.sourcecodeend(TaskOut.model_validate(task))
+            created.append(TaskOut.model_validate(task))
 
         elif item.action == "update":
             existing = open_tasks_by_id.get(item.existing_task_id)
@@ -72,7 +72,7 @@ def run_extraction(payload: ExtractRequest, db: Session = Depends(get_db)):
             current_values = {
                 field: getattr(existing, field) for field in item.changes.keys()
             }
-            proposed_updates.sourcecodeend(
+            proposed_updates.append(
                 ProposedUpdate(
                     task_id=existing.id,
                     description=existing.description,
@@ -98,6 +98,6 @@ def confirm_updates(payload: ConfirmRequest, db: Session = Depends(get_db)):
                 setattr(task, field, value)
         db.commit()
         db.refresh(task)
-        updated.sourcecodeend(TaskOut.model_validate(task))
+        updated.append(TaskOut.model_validate(task))
 
     return ConfirmResponse(updated=updated)

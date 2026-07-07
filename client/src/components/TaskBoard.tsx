@@ -1,4 +1,4 @@
-import type { Task, TaskPriority, TaskStatus } from '../types/task';
+import type { Task, TaskPriority, TaskStatus } from "../types/task";
 
 interface TaskBoardProps {
   tasks: Task[];
@@ -6,10 +6,14 @@ interface TaskBoardProps {
   onPriorityChange: (task: Task, priority: TaskPriority) => void;
 }
 
-const statuses: TaskStatus[] = ['To Do', 'In Progress', 'Done'];
-const priorities: TaskPriority[] = ['High', 'Medium', 'Low'];
+const statuses: TaskStatus[] = ["To Do", "In Progress", "Done"];
+const priorities: TaskPriority[] = ["High", "Medium", "Low"];
 
-export function TaskBoard({ tasks, onStatusChange, onPriorityChange }: TaskBoardProps) {
+export function TaskBoard({
+  tasks,
+  onStatusChange,
+  onPriorityChange,
+}: TaskBoardProps) {
   return (
     <section className="card card-stack">
       <div className="card-heading compact">
@@ -26,18 +30,22 @@ export function TaskBoard({ tasks, onStatusChange, onPriorityChange }: TaskBoard
                 <h3>{task.title}</h3>
                 <p>{task.description}</p>
               </div>
-              <span className={`pill ${task.priority.toLowerCase()}`}>{task.priority}</span>
+              <span className={`pill ${task.priority.toLowerCase()}`}>
+                {task.priority}
+              </span>
             </div>
             <div className="task-meta">
               <span>Owner: {task.owner}</span>
-              <span>Due: {task.dueDate ?? 'TBD'}</span>
+              <span>Due: {task.dueDate ?? "TBD"}</span>
             </div>
             <div className="task-controls">
               <label>
                 Status
                 <select
                   value={task.status}
-                  onChange={(event) => onStatusChange(task, event.target.value as TaskStatus)}
+                  onChange={(event) =>
+                    onStatusChange(task, event.target.value as TaskStatus)
+                  }
                 >
                   {statuses.map((status) => (
                     <option key={status} value={status}>
@@ -50,7 +58,9 @@ export function TaskBoard({ tasks, onStatusChange, onPriorityChange }: TaskBoard
                 Priority
                 <select
                   value={task.priority}
-                  onChange={(event) => onPriorityChange(task, event.target.value as TaskPriority)}
+                  onChange={(event) =>
+                    onPriorityChange(task, event.target.value as TaskPriority)
+                  }
                 >
                   {priorities.map((priority) => (
                     <option key={priority} value={priority}>

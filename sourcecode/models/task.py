@@ -13,7 +13,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from sourcecode.db.database import Base
+from db.database import Base
 
 
 class PriorityEnum(str, enum.Enum):

@@ -1,4 +1,4 @@
-import type { FormEvent } from 'react';
+import type { FormEvent } from "react";
 
 interface NoteComposerProps {
   value: string;
@@ -7,7 +7,12 @@ interface NoteComposerProps {
   isLoading: boolean;
 }
 
-export function NoteComposer({ value, onChange, onExtract, isLoading }: NoteComposerProps) {
+export function NoteComposer({
+  value,
+  onChange,
+  onExtract,
+  isLoading,
+}: NoteComposerProps) {
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
     onExtract();
@@ -21,7 +26,7 @@ export function NoteComposer({ value, onChange, onExtract, isLoading }: NoteComp
           <h2>Turn meeting notes into action plans</h2>
         </div>
         <button className="btn btn-primary" type="submit" disabled={isLoading}>
-          {isLoading ? 'Extracting…' : 'Extract tasks'}
+          {isLoading ? "Extracting…" : "Extract tasks"}
         </button>
       </div>
       <label className="field-label" htmlFor="notes">
@@ -36,7 +41,8 @@ export function NoteComposer({ value, onChange, onExtract, isLoading }: NoteComp
         onChange={(event) => onChange(event.target.value)}
       />
       <p className="helper-text">
-        The assistant will infer owners, due dates, and urgency while keeping existing work visible.
+        The assistant will infer owners, due dates, and urgency while keeping
+        existing work visible.
       </p>
     </form>
   );
