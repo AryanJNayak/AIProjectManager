@@ -89,7 +89,7 @@ function InlineTextCell({
         </span>
         <svg
           viewBox="0 0 14 14"
-          className="h-3 w-3 flex-shrink-0 text-slate-600 opacity-0 transition-opacity group-hover:opacity-100"
+          className="h-3 w-3 shrink-0 text-slate-600 opacity-0 transition-opacity group-hover:opacity-100"
           fill="none"
         >
           <path
@@ -154,7 +154,7 @@ function InlineDateCell({
         </span>
         <svg
           viewBox="0 0 14 14"
-          className="h-3 w-3 flex-shrink-0 text-slate-600 opacity-0 transition-opacity group-hover:opacity-100"
+          className="h-3 w-3 shrink-0-slate-600 opacity-0 transition-opacity group-hover:opacity-100"
           fill="none"
         >
           <rect
@@ -301,11 +301,11 @@ export function TaskTable({
               <tr
                 key={task.id}
                 className={`border-b border-slate-800/60 last:border-0 transition-colors ${
-                  isDirty ? "bg-amber-400/[0.03]" : "hover:bg-slate-800/30"
+                  isDirty ? "bg-amber-400/3" : "hover:bg-slate-800/30"
                 }`}
               >
                 {/* Description — click to open detail modal */}
-                <td className="max-w-[260px] min-w-0 px-4 py-3 align-top">
+                <td className="max-w-65 min-w-0 px-4 py-3 align-top">
                   <button
                     type="button"
                     onClick={() => onTaskClick(task)}

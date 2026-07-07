@@ -274,13 +274,15 @@ export default function App() {
       return;
     }
 
+    const selectedTables: Array<"structured" | "unstructured"> = [
+      ...(exportSelection.structured ? (["structured"] as const) : []),
+      ...(exportSelection.unstructured ? (["unstructured"] as const) : []),
+    ];
+
     setIsExporting(true);
     setExportPreview(null);
     try {
-      const preview = await previewExport([
-        ...(exportSelection.structured ? ["structured"] : []),
-        ...(exportSelection.unstructured ? ["unstructured"] : []),
-      ]);
+      const preview = await previewExport(selectedTables);
       setExportPreview(preview);
     } catch (err: unknown) {
       showAlert(err, "Failed to generate export preview");
@@ -292,12 +294,14 @@ export default function App() {
   const handleDownloadExport = async () => {
     if (!exportPreview) return;
 
+    const selectedTables: Array<"structured" | "unstructured"> = [
+      ...(exportSelection.structured ? (["structured"] as const) : []),
+      ...(exportSelection.unstructured ? (["unstructured"] as const) : []),
+    ];
+
     setIsExporting(true);
     try {
-      const result = await exportTasks([
-        ...(exportSelection.structured ? ["structured"] : []),
-        ...(exportSelection.unstructured ? ["unstructured"] : []),
-      ]);
+      const result = await exportTasks(selectedTables);
 
       const url = window.URL.createObjectURL(result.blob);
       const anchor = document.createElement("a");

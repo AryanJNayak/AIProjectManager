@@ -28,7 +28,7 @@ function getRank(key: string, value: string): number | null {
 
 // ---------------------------------------------------------------------------
 
-export function useSortableData<T extends Record<string, unknown>>(
+export function useSortableData<T extends object>(
   rows: T[],
   initialKey: keyof T | null = null,
 ) {
@@ -42,8 +42,10 @@ export function useSortableData<T extends Record<string, unknown>>(
     const key = sort.key as string;
 
     return [...rows].sort((a, b) => {
-      const aVal = a[key];
-      const bVal = b[key];
+      const recordA = a as Record<string, unknown>;
+      const recordB = b as Record<string, unknown>;
+      const aVal = recordA[key];
+      const bVal = recordB[key];
 
       if (aVal == null && bVal == null) return 0;
       if (aVal == null) return 1;

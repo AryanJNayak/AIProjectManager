@@ -79,7 +79,7 @@ function TaskEditCard({
     <div
       className={`rounded-xl border p-4 transition-colors ${
         isUnstructured
-          ? 'border-amber-400/25 bg-amber-400/[0.03]'
+          ? 'border-amber-400/25 bg-amber-400/3'
           : 'border-slate-800 bg-slate-900/40'
       }`}
     >
@@ -111,7 +111,7 @@ function TaskEditCard({
 
           {/* Description — locked */}
           <div className="flex items-start gap-2">
-            <svg viewBox="0 0 16 16" className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-slate-500" fill="none">
+            <svg viewBox="0 0 16 16" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-500" fill="none">
               <rect x="4" y="7" width="8" height="7" rx="1" stroke="currentColor" strokeWidth="1.3" />
               <path d="M5.5 7V5a2.5 2.5 0 015 0v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
             </svg>
@@ -259,7 +259,7 @@ export function UnstructuredConfirmModal({
       <div className="flex w-full max-w-2xl flex-col rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl" style={{ maxHeight: '90vh' }}>
 
         {/* ── Header ── */}
-        <div className="flex-shrink-0 border-b border-slate-800 px-6 py-5">
+        <div className="shrink-0 border-b border-slate-800 px-6 py-5">
           <p className="text-xs font-semibold uppercase tracking-wider text-amber-300">
             Review before saving
           </p>
@@ -343,13 +343,13 @@ export function UnstructuredConfirmModal({
                               const oldVal = update.current[field as keyof typeof update.current];
                               return (
                                 <div key={field} className="flex items-center gap-2 text-xs">
-                                  <span className="w-20 flex-shrink-0 text-slate-500">
+                                  <span className="w-20 shrink-0 text-slate-500">
                                     {UPDATE_FIELD_LABELS[field] ?? field}
                                   </span>
                                   <span className="rounded bg-slate-800 px-2 py-0.5 font-mono text-slate-400 line-through decoration-slate-600">
                                     {formatUpdateValue(oldVal)}
                                   </span>
-                                  <svg viewBox="0 0 12 8" className="h-2 w-3 flex-shrink-0 text-slate-600">
+                                  <svg viewBox="0 0 12 8" className="h-2 w-3 shrink-0 text-slate-600">
                                     <path d="M0 4H11M11 4L7.5 0.5M11 4L7.5 7.5" stroke="currentColor" strokeWidth="1.3" fill="none" />
                                   </svg>
                                   <span className="rounded bg-teal-400/10 px-2 py-0.5 font-mono font-medium text-teal-300">
@@ -370,7 +370,7 @@ export function UnstructuredConfirmModal({
         </div>
 
         {/* ── Footer ── */}
-        <div className="flex-shrink-0 flex items-center justify-between gap-3 border-t border-slate-800 px-6 py-4">
+        <div className="shrink-0 flex items-center justify-between gap-3 border-t border-slate-800 px-6 py-4">
           <button
             type="button"
             onClick={onCancel}
