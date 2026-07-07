@@ -23,10 +23,18 @@ const apiClient = axios.create({
 
 function taskDraftToSnakeCase(updates: TaskDraft): Record<string, unknown> {
   const result: Record<string, unknown> = {};
-  if (updates.dueDate !== undefined) result.due_date = updates.dueDate || null;
-  if (updates.owner !== undefined) result.owner = updates.owner || null;
-  if (updates.priority !== undefined) result.priority = updates.priority;
-  if (updates.status !== undefined) result.status = updates.status;
+  if (updates.dueDate !== undefined) {
+    result.due_date = updates.dueDate || null;
+  }
+  if (updates.owner !== undefined) {
+    result.owner = updates.owner === "" ? null : updates.owner;
+  }
+  if (updates.priority !== undefined) {
+    result.priority = updates.priority;
+  }
+  if (updates.status !== undefined) {
+    result.status = updates.status;
+  }
   return result;
 }
 
@@ -160,4 +168,51 @@ export async function confirmUpdates(
 export async function updateTask(taskId: number, updates: TaskDraft): Promise<Task> {
   const payload = taskDraftToSnakeCase(updates);
   return (await apiClient.patch<Task>(`/tasks/${taskId}`, payload)).data;
+}
+
+export interface ExportPreviewTableSummary {
+  name: string;
+  records: number;
+}
+
+export interface ExportPreviewResult {
+  filename: string;
+  size: number;
+  createdAt: string;
+  format: 'csv' | 'xlsx';
+  tables: ExportPreviewTableSummary[];
+}
+
+export async function previewExport(
+  tables: Array<'structured' | 'unstructured'>,
+): Promise<ExportPreviewResult> {
+  const response = await apiClient.post<ExportPreviewResult>('/tasks/export/preview', {
+    tables,
+  });
+  return response.data;
+}
+
+export interface ExportResult {
+  blob: Blob;
+  filename: string;
+  size: number;
+}
+
+export async function exportTasks(
+  tables: Array<'structured' | 'unstructured'>,
+): Promise<ExportResult> {
+  const response = await apiClient.post<Blob>(
+    '/tasks/export',
+    { tables },
+    { responseType: 'blob' },
+  );
+
+  const contentDisposition = response.headers['content-disposition'] ?? '';
+  const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+  const filename = filenameMatch
+    ? filenameMatch[1].replace(/['"]/g, '')
+    : `e2m_ai_project_manager_${new Date().toISOString().replace(/[:.-]/g, '')}.csv`;
+
+  const blob = response.data as Blob;
+  return { blob, filename, size: blob.size };
 }

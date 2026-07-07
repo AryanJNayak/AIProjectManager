@@ -14,11 +14,14 @@ import {
 import { ConfirmChangesDialog } from "./components/ConfirmChangesDialog";
 import { TaskDetailModal } from "./components/TaskDetailModal";
 import { AlertPopup, type AlertType } from "./components/AlertPopup";
+import { ExportPreviewModal } from "./components/ExportPreviewModal";
 import {
   getNotesHistory,
   getTaskNotes,
   getTasks,
   updateTask,
+  exportTasks,
+  previewExport,
   extractTasksFromNotes,
   confirmAll,
   confirmUpdates,
@@ -72,6 +75,19 @@ export default function App() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [taskNoteLinks, setTaskNoteLinks] = useState<NoteLink[]>([]);
   const [isLoadingNoteLinks, setIsLoadingNoteLinks] = useState(false);
+
+  const [exportSelection, setExportSelection] = useState({
+    structured: true,
+    unstructured: false,
+  });
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportPreview, setExportPreview] = useState<{
+    filename: string;
+    size: number;
+    createdAt: string;
+    format: "csv" | "xlsx";
+    tables: Array<{ name: string; records: number }>;
+  } | null>(null);
 
   // —— Alert popup (past-date, done-task, duplicate note, etc.) ————————————————
   const [alert, setAlert] = useState<{
@@ -241,6 +257,65 @@ export default function App() {
     await applyTaskDraft(task, changes);
   };
 
+  const handleToggleExportTable = (table: "structured" | "unstructured") => {
+    setExportSelection((prev) => ({
+      ...prev,
+      [table]: !prev[table],
+    }));
+    setExportPreview(null);
+  };
+
+  const handlePreviewExport = async () => {
+    if (!exportSelection.structured && !exportSelection.unstructured) {
+      showAlert(
+        new Error("Please select one or more tables before exporting."),
+        "Export selection missing",
+      );
+      return;
+    }
+
+    setIsExporting(true);
+    setExportPreview(null);
+    try {
+      const preview = await previewExport([
+        ...(exportSelection.structured ? ["structured"] : []),
+        ...(exportSelection.unstructured ? ["unstructured"] : []),
+      ]);
+      setExportPreview(preview);
+    } catch (err: unknown) {
+      showAlert(err, "Failed to generate export preview");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleDownloadExport = async () => {
+    if (!exportPreview) return;
+
+    setIsExporting(true);
+    try {
+      const result = await exportTasks([
+        ...(exportSelection.structured ? ["structured"] : []),
+        ...(exportSelection.unstructured ? ["unstructured"] : []),
+      ]);
+
+      const url = window.URL.createObjectURL(result.blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = result.filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      window.URL.revokeObjectURL(url);
+
+      setExportPreview(null);
+    } catch (err: unknown) {
+      showAlert(err, "Failed to download export");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // ── Extraction flow ───────────────────────────────────────────────────────
 
   const handleExtract = async () => {
@@ -375,6 +450,10 @@ export default function App() {
         onNavigate={setView}
         taskCount={tasks.length}
         noteCount={notes.length}
+        exportSelection={exportSelection}
+        onToggleExportTable={handleToggleExportTable}
+        onPreviewExport={handlePreviewExport}
+        isExporting={isExporting}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -591,6 +670,15 @@ export default function App() {
           isLoadingNotes={isLoadingNoteLinks}
           onClose={() => setSelectedTask(null)}
           onSave={handleDetailSave}
+        />
+      )}
+
+      {exportPreview && (
+        <ExportPreviewModal
+          exportPreview={exportPreview}
+          isDownloading={isExporting}
+          onDownload={handleDownloadExport}
+          onClose={() => setExportPreview(null)}
         />
       )}
 

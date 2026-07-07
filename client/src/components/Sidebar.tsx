@@ -1,5 +1,3 @@
-import { JSX } from "react/jsx-runtime";
-
 export type View = "tasks" | "notes";
 
 interface SidebarProps {
@@ -7,6 +5,10 @@ interface SidebarProps {
   onNavigate: (view: View) => void;
   taskCount: number;
   noteCount: number;
+  exportSelection: { structured: boolean; unstructured: boolean };
+  onToggleExportTable: (table: "structured" | "unstructured") => void;
+  onPreviewExport: () => void;
+  isExporting: boolean;
 }
 
 export function Sidebar({
@@ -14,15 +16,14 @@ export function Sidebar({
   onNavigate,
   taskCount,
   noteCount,
+  exportSelection,
+  onToggleExportTable,
+  onPreviewExport,
+  isExporting,
 }: SidebarProps) {
-  const items: Array<{
-    id: View;
-    label: string;
-    count: number;
-    icon: JSX.Element;
-  }> = [
+  const items = [
     {
-      id: "tasks",
+      id: "tasks" as View,
       label: "Tasks",
       count: taskCount,
       icon: (
@@ -35,7 +36,7 @@ export function Sidebar({
       ),
     },
     {
-      id: "notes",
+      id: "notes" as View,
       label: "Notes history",
       count: noteCount,
       icon: (
@@ -102,11 +103,41 @@ export function Sidebar({
         })}
       </nav>
 
-      <div className="mt-auto rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-3">
-        <p className="text-xs leading-relaxed text-slate-500">
-          Extraction runs through the LLM, then lands here for review before
-          anything overwrites existing work.
-        </p>
+      <div className="space-y-4 rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Export tables
+          </p>
+          <div className="mt-3 space-y-2 text-sm text-slate-300">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={exportSelection.structured}
+                onChange={() => onToggleExportTable("structured")}
+                className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-teal-400"
+              />
+              Structured
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={exportSelection.unstructured}
+                onChange={() => onToggleExportTable("unstructured")}
+                className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-teal-400"
+              />
+              Unstructured
+            </label>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onPreviewExport}
+          disabled={isExporting}
+          className="inline-flex w-full items-center justify-center rounded-lg bg-teal-400 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-teal-300 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isExporting ? "Generating…" : "Preview export"}
+        </button>
       </div>
     </aside>
   );

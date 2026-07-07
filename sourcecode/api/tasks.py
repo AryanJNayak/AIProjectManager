@@ -1,14 +1,33 @@
-from typing import Optional, List
+from datetime import datetime
+from typing import Optional, List, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from db.database import get_db
 from models.task import Task, Note, TaskNoteLink, StatusEnum
 from schemas.task_schema import TaskOut, TaskUpdate, Priority, Status, NoteLinkOut
-from services.csv_export import tasks_to_csv
+from services.csv_export import tasks_to_csv, tasks_to_excel
+
+
+class TaskExportRequest(BaseModel):
+    tables: List[Literal["structured", "unstructured"]]
+
+
+class ExportTableSummary(BaseModel):
+    name: str
+    records: int
+
+
+class TaskExportPreviewResponse(BaseModel):
+    filename: str
+    size: int
+    createdAt: datetime
+    format: Literal["csv", "xlsx"]
+    tables: List[ExportTableSummary]
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
@@ -71,6 +90,80 @@ def export_tasks(
         buf,
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=tasks.csv"},
+    )
+
+
+@router.post("/export/preview", response_model=TaskExportPreviewResponse)
+def preview_selected_tasks(payload: TaskExportRequest, db: Session = Depends(get_db)):
+    """Purpose: Preview the export metadata for selected task tables."""
+    if not payload.tables:
+        raise HTTPException(status_code=422, detail="Select at least one table to export.")
+
+    tasks = db.query(Task).order_by(Task.created_at.desc()).all()
+    tables: dict[str, List[Task]] = {}
+
+    if "structured" in payload.tables:
+        tables["Structured"] = [
+            task for task in tasks if task.due_date and task.owner
+        ]
+    if "unstructured" in payload.tables:
+        tables["Unstructured"] = [
+            task for task in tasks if not task.due_date or not task.owner
+        ]
+
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    if len(tables) > 1:
+        buf = tasks_to_excel(tables)
+        filename = f"e2m_ai_project_manager_{timestamp}.xlsx"
+        file_format = "xlsx"
+    else:
+        single_tasks = next(iter(tables.values()), [])
+        buf = tasks_to_csv(single_tasks)
+        filename = f"e2m_ai_project_manager_{timestamp}.csv"
+        file_format = "csv"
+
+    return TaskExportPreviewResponse(
+        filename=filename,
+        size=len(buf.getvalue() if hasattr(buf, 'getvalue') else buf.read()),
+        createdAt=datetime.now(),
+        format=file_format,
+        tables=[ExportTableSummary(name=name, records=len(rows)) for name, rows in tables.items()],
+    )
+
+
+@router.post("/export", response_class=StreamingResponse)
+def export_selected_tasks(payload: TaskExportRequest, db: Session = Depends(get_db)):
+    """Purpose: Generate a downloadable export of selected task tables."""
+    if not payload.tables:
+        raise HTTPException(status_code=422, detail="Select at least one table to export.")
+
+    tasks = db.query(Task).order_by(Task.created_at.desc()).all()
+    tables: dict[str, List[Task]] = {}
+
+    if "structured" in payload.tables:
+        tables["Structured"] = [
+            task for task in tasks if task.due_date and task.owner
+        ]
+    if "unstructured" in payload.tables:
+        tables["Unstructured"] = [
+            task for task in tasks if not task.due_date or not task.owner
+        ]
+
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    if len(tables) > 1:
+        buf = tasks_to_excel(tables)
+        filename = f"e2m_ai_project_manager_{timestamp}.xlsx"
+        media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    else:
+        single_tasks = next(iter(tables.values()), [])
+        buf = tasks_to_csv(single_tasks)
+        filename = f"e2m_ai_project_manager_{timestamp}.csv"
+        media_type = "text/csv"
+
+    return StreamingResponse(
+        buf,
+        media_type=media_type,
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
 
