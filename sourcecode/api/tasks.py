@@ -128,15 +128,28 @@ def get_task(task_id: int, db: Session = Depends(get_db)):
 def update_task(task_id: int, payload: TaskUpdate, db: Session = Depends(get_db)):
     """Purpose: Apply partial updates to an existing task.
 
+    Rejects changes to tasks that are already marked as 'Done' (403) and rejects
+    any due_date in the past (422 via Pydantic validator on TaskUpdate).
+
     Inputs: The task_id, a TaskUpdate payload with fields to change, and the database session.
 
-    Outputs: The updated task record or a 404 error if the task does not exist.
+    Outputs: The updated task record or an error if validation fails.
 
     Example: PATCH /api/tasks/42 with {"status": "done"}
     """
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+
+    # Done tasks are read-only — neither manual edits nor LLM updates are allowed
+    if task.status == StatusEnum.done:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"Task \"{task.description[:60]}\" is marked as Done and is read-only. "
+                "Re-open it by changing its status first."
+            ),
+        )
 
     updates = payload.model_dump(exclude_unset=True)
     for field, value in updates.items():

@@ -2,7 +2,7 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Optional, List, Literal
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
 class Priority(str, Enum):
@@ -37,6 +37,19 @@ class TaskUpdate(BaseModel):
     owner: Optional[str] = None
     priority: Optional[Priority] = None
     status: Optional[Status] = None
+
+    @field_validator("due_date", mode="before")
+    @classmethod
+    def due_date_not_in_past(cls, v: object) -> object:
+        if v is None:
+            return v
+        d = v if isinstance(v, date) else date.fromisoformat(str(v))
+        if d < date.today():
+            raise ValueError(
+                f"Due date {d} is in the past. "
+                "Please use today's date or a future date."
+            )
+        return v
 
 
 class TaskOut(BaseModel):
@@ -143,6 +156,19 @@ class ConfirmNewTaskInput(BaseModel):
     owner: Optional[str] = None
     priority: Priority = Priority.Medium
     status: Status = Status.todo
+
+    @field_validator("due_date", mode="before")
+    @classmethod
+    def due_date_not_in_past(cls, v: object) -> object:
+        if v is None:
+            return v
+        d = v if isinstance(v, date) else date.fromisoformat(str(v))
+        if d < date.today():
+            raise ValueError(
+                f"Due date {d} is in the past. "
+                "Please use today's date or a future date."
+            )
+        return v
 
 
 class ConfirmAllRequest(BaseModel):

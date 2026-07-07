@@ -76,7 +76,7 @@ export function Sidebar({
               key={item.id}
               type="button"
               onClick={() => onNavigate(item.id)}
-              className={`group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors ${
+              className={`group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors mb-2 ${
                 isActive
                   ? "bg-teal-400/10 text-teal-300"
                   : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"

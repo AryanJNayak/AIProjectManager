@@ -1,10 +1,11 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from "react";
 
 interface CollapsibleSectionProps {
   title: string;
   subtitle?: string;
   count: number;
   defaultOpen?: boolean;
+  headerRight?: ReactNode;
   children: ReactNode;
 }
 
@@ -13,6 +14,7 @@ export function CollapsibleSection({
   subtitle,
   count,
   defaultOpen = true,
+  headerRight,
   children,
 }: CollapsibleSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
@@ -28,11 +30,18 @@ export function CollapsibleSection({
           <svg
             viewBox="0 0 20 20"
             className={`h-4 w-4 flex-shrink-0 text-slate-500 transition-transform duration-200 ${
-              open ? 'rotate-90' : ''
+              open ? "rotate-90" : ""
             }`}
             fill="currentColor"
           >
-            <path d="M7 4l6 6-6 6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M7 4l6 6-6 6"
+              stroke="currentColor"
+              strokeWidth="2"
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
           <div>
             <h3 className="text-sm font-semibold text-slate-100">{title}</h3>
@@ -41,14 +50,17 @@ export function CollapsibleSection({
             )}
           </div>
         </div>
-        <span className="rounded-full bg-slate-800 px-2.5 py-1 font-mono text-[11px] tabular-nums text-slate-400">
-          {count}
-        </span>
+        <div className="flex items-center gap-3">
+          {headerRight}
+          <span className="rounded-full bg-slate-800 px-2.5 py-1 font-mono text-[11px] tabular-nums text-slate-400">
+            {count}
+          </span>
+        </div>
       </button>
 
       <div
         className={`grid transition-[grid-template-rows] duration-200 ease-out ${
-          open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
         }`}
       >
         <div className="overflow-hidden">

@@ -132,6 +132,7 @@ function TaskEditCard({
           </label>
           <input
             type="date"
+            min={new Date().toISOString().split('T')[0]}
             value={task.dueDate}
             onChange={(e) => onChange({ ...task, dueDate: e.target.value })}
             className={`${inputBase} ${missingDate ? emptyHighlight : normalField}`}

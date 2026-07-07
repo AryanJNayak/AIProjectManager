@@ -214,6 +214,7 @@ export function TaskDetailModal({
                   </label>
                   <input
                     type="date"
+                    min={new Date().toISOString().split('T')[0]}
                     value={val('dueDate') ?? ''}
                     onChange={e => set('dueDate', e.target.value)}
                     className={inputBase}

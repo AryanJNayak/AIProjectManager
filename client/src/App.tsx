@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
 import { Sidebar, type View } from "./components/Sidebar";
 import { SearchBar } from "./components/SearchBar";
@@ -7,9 +7,13 @@ import { TaskTable } from "./components/TaskTable";
 import { NotesHistory } from "./components/NotesHistory";
 import { NoteComposer } from "./components/NoteComposer";
 import { UpdateConfirmationModal } from "./components/UpdateConfirmationModal";
-import { UnstructuredConfirmModal, type EditableTask } from "./components/UnstructuredConfirmModal";
+import {
+  UnstructuredConfirmModal,
+  type EditableTask,
+} from "./components/UnstructuredConfirmModal";
 import { ConfirmChangesDialog } from "./components/ConfirmChangesDialog";
 import { TaskDetailModal } from "./components/TaskDetailModal";
+import { AlertPopup, type AlertType } from "./components/AlertPopup";
 import {
   getNotesHistory,
   getTaskNotes,
@@ -45,17 +49,23 @@ export default function App() {
 
   // ── Extraction confirmation flows ─────────────────────────────────────────
   // 1. Unstructured tasks → UnstructuredConfirmModal (nothing saved until Accept)
-  const [pendingExtraction, setPendingExtraction] = useState<ExtractionResponse | null>(null);
+  const [pendingExtraction, setPendingExtraction] =
+    useState<ExtractionResponse | null>(null);
   // 2. Proposed updates to existing tasks only → UpdateConfirmationModal
   const [pendingUpdates, setPendingUpdates] = useState<ProposedUpdate[]>([]);
   // The note ID from the confirm_all call that triggered these updates.
   // Forwarded to confirmUpdates so the backend can write TaskNoteLink rows.
-  const [pendingUpdatesNoteId, setPendingUpdatesNoteId] = useState<number | null>(null);
+  const [pendingUpdatesNoteId, setPendingUpdatesNoteId] = useState<
+    number | null
+  >(null);
 
   // ── Per-row draft changes (not yet saved to DB) ───────────────────────────
   const [rowDrafts, setRowDrafts] = useState<Record<number, TaskDraft>>({});
   // When a row's Save is clicked, queue it here to show ConfirmChangesDialog
-  const [confirmRow, setConfirmRow] = useState<{ task: Task; draft: TaskDraft } | null>(null);
+  const [confirmRow, setConfirmRow] = useState<{
+    task: Task;
+    draft: TaskDraft;
+  } | null>(null);
   const [isSavingRow, setIsSavingRow] = useState(false);
 
   // ── Task detail modal ─────────────────────────────────────────────────────
@@ -63,10 +73,47 @@ export default function App() {
   const [taskNoteLinks, setTaskNoteLinks] = useState<NoteLink[]>([]);
   const [isLoadingNoteLinks, setIsLoadingNoteLinks] = useState(false);
 
+  // —— Alert popup (past-date, done-task, duplicate note, etc.) ————————————————
+  const [alert, setAlert] = useState<{
+    type: AlertType;
+    title: string;
+    message: string;
+  } | null>(null);
+
+  const showAlert = (err: unknown, fallbackTitle = "Something went wrong") => {
+    if (axios.isAxiosError(err) && err.response) {
+      const status = err.response.status;
+      const detail: string = err.response.data?.detail ?? err.message;
+      if (status === 403) {
+        setAlert({ type: "warning", title: "Read-only task", message: detail });
+      } else if (status === 422) {
+        // Extract the first validation error message
+        const raw = err.response.data;
+        const msg: string =
+          typeof raw?.detail === "string"
+            ? raw.detail
+            : Array.isArray(raw?.detail)
+              ? (raw.detail[0]?.msg ?? detail)
+              : detail;
+        setAlert({ type: "error", title: "Invalid date", message: msg });
+      } else if (status === 409) {
+        setAlert({ type: "warning", title: "Duplicate note", message: detail });
+      } else {
+        setAlert({ type: "error", title: fallbackTitle, message: detail });
+      }
+    } else if (err instanceof Error) {
+      setAlert({ type: "error", title: fallbackTitle, message: err.message });
+    }
+  };
+
   // ── Bootstrap ─────────────────────────────────────────────────────────────
   useEffect(() => {
-    getTasks().then(setTasks);
-    getNotesHistory().then(setNotes);
+    getTasks()
+      .then(setTasks)
+      .catch((err) => showAlert(err, "Failed to fetch tasks"));
+    getNotesHistory()
+      .then(setNotes)
+      .catch((err) => showAlert(err, "Failed to fetch notes history"));
   }, []);
 
   // ── Derived lists ─────────────────────────────────────────────────────────
@@ -74,47 +121,86 @@ export default function App() {
   const filteredTasks = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return tasks;
-    return tasks.filter(t =>
-      [t.description, t.owner].filter(Boolean).some(f => f!.toLowerCase().includes(q)),
+    return tasks.filter((t) =>
+      [t.description, t.owner]
+        .filter(Boolean)
+        .some((f) => f!.toLowerCase().includes(q)),
     );
   }, [tasks, search]);
 
   // Bug 1 fix: Structured = has BOTH dueDate AND owner; otherwise Unstructured.
-  const structuredTasks = filteredTasks.filter(t => t.dueDate && t.owner);
-  const unstructuredTasks = filteredTasks.filter(t => !t.dueDate || !t.owner);
+  const structuredTasks = filteredTasks.filter((t) => t.dueDate && t.owner);
+  const unstructuredTasks = filteredTasks.filter((t) => !t.dueDate || !t.owner);
+  const [structuredPage, setStructuredPage] = useState(1);
+  const [unstructuredPage, setUnstructuredPage] = useState(1);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   const addNoteToHistory = (rawText: string, taskCount: number) =>
-    setNotes(prev => [
-      { id: Date.now(), rawText, createdAt: new Date().toISOString(), taskCount },
+    setNotes((prev) => [
+      {
+        id: Date.now(),
+        rawText,
+        createdAt: new Date().toISOString(),
+        taskCount,
+      },
       ...prev,
     ]);
 
+  useEffect(() => {
+    setStructuredPage(1);
+  }, [structuredTasks.length, search]);
+
+  useEffect(() => {
+    setUnstructuredPage(1);
+  }, [unstructuredTasks.length, search]);
+
   /**
    * Apply a TaskDraft to the backend and merge the result into local state.
-   * Uses optimistic update so the UI responds immediately.
+   * Uses optimistic update; rolls back on error and shows the AlertPopup.
    */
   const applyTaskDraft = async (task: Task, draft: TaskDraft) => {
-    const optimistic: Task = { ...task, ...draft, updatedAt: new Date().toISOString() };
-    setTasks(prev => prev.map(t => (t.id === task.id ? optimistic : t)));
-    const saved = await updateTask(task.id, draft);
-    setTasks(prev => prev.map(t => (t.id === task.id ? saved : t)));
-    // If the detail modal is open for this task, sync it too
-    setSelectedTask(prev => (prev?.id === task.id ? saved : prev));
+    const optimistic: Task = {
+      ...task,
+      ...draft,
+      updatedAt: new Date().toISOString(),
+    };
+    setTasks((prev) => prev.map((t) => (t.id === task.id ? optimistic : t)));
+    try {
+      const saved = await updateTask(task.id, draft);
+      setTasks((prev) => prev.map((t) => (t.id === task.id ? saved : t)));
+      setSelectedTask((prev) => (prev?.id === task.id ? saved : prev));
+    } catch (err) {
+      // Roll back optimistic update on error
+      setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)));
+      setSelectedTask((prev) => (prev?.id === task.id ? task : prev));
+      showAlert(err, "Could not save task");
+      throw err; // re-throw so callers know the save failed
+    }
   };
 
   // ── Row-draft handlers ────────────────────────────────────────────────────
 
-  const handleDraftChange = (task: Task, field: keyof TaskDraft, value: string) => {
-    setRowDrafts(prev => ({
+  const handleDraftChange = (
+    task: Task,
+    field: keyof TaskDraft,
+    value: string,
+  ) => {
+    setRowDrafts((prev) => ({
       ...prev,
-      [task.id]: { ...prev[task.id], [field]: value as TaskPriority & TaskStatus },
+      [task.id]: {
+        ...prev[task.id],
+        [field]: value as TaskPriority & TaskStatus,
+      },
     }));
   };
 
   const handleRevertRow = (task: Task) => {
-    setRowDrafts(prev => { const n = { ...prev }; delete n[task.id]; return n; });
+    setRowDrafts((prev) => {
+      const n = { ...prev };
+      delete n[task.id];
+      return n;
+    });
   };
 
   const handleSaveRow = (task: Task) => {
@@ -130,6 +216,8 @@ export default function App() {
       await applyTaskDraft(confirmRow.task, confirmRow.draft);
       handleRevertRow(confirmRow.task);
       setConfirmRow(null);
+    } catch {
+      // error already shown by showAlert inside applyTaskDraft
     } finally {
       setIsSavingRow(false);
     }
@@ -160,7 +248,7 @@ export default function App() {
 
     // Bug 2: Duplicate note check (frontend fast-path)
     const isDuplicate = notes.some(
-      n => n.rawText.trim().toLowerCase() === noteText.trim().toLowerCase(),
+      (n) => n.rawText.trim().toLowerCase() === noteText.trim().toLowerCase(),
     );
     if (isDuplicate) {
       setExtractError(
@@ -175,16 +263,15 @@ export default function App() {
       const result = await extractTasksFromNotes(noteText);
 
       // If there are any unstructured tasks → show the confirmation modal.
-      // Nothing is saved until the user clicks Accept.
       if (result.unstructuredNew.length > 0) {
         setPendingExtraction(result);
-        return;  // note text intentionally preserved so user can read it
+        return;
       }
 
-      // All tasks are structured (or there are only proposed updates) — auto-save.
+      // All structured (or only proposed updates) — auto-save.
       const saved = await confirmAll({
         noteText: result.noteText,
-        tasksToCreate: result.structuredNew.map(t => ({
+        tasksToCreate: result.structuredNew.map((t) => ({
           description: t.description,
           dueDate: t.dueDate,
           owner: t.owner,
@@ -193,22 +280,16 @@ export default function App() {
         })),
         approvedUpdates: [],
       });
-      setTasks(prev => [...saved.created, ...prev]);
+      setTasks((prev) => [...saved.created, ...prev]);
       addNoteToHistory(result.noteText, saved.created.length);
       setNoteText("");
 
       if (result.proposedUpdates.length > 0) {
-        // Capture the note ID so confirmUpdates can write audit-link rows
         setPendingUpdatesNoteId(saved.noteId);
-        setPendingUpdates(prev => [...result.proposedUpdates, ...prev]);
+        setPendingUpdates((prev) => [...result.proposedUpdates, ...prev]);
       }
     } catch (err: unknown) {
-      if (axios.isAxiosError(err) && err.response?.status === 409) {
-        setExtractError(
-          err.response.data?.detail ??
-          "This note has already been processed.",
-        );
-      }
+      showAlert(err, "Extraction failed");
     } finally {
       setIsExtracting(false);
     }
@@ -225,31 +306,33 @@ export default function App() {
     try {
       const saved = await confirmAll({
         noteText: pendingExtraction.noteText,
-        tasksToCreate: editedTasks.map(t => ({
+        tasksToCreate: editedTasks.map((t) => ({
           description: t.description,
           dueDate: t.dueDate || null,
           owner: t.owner || null,
           priority: t.priority,
           status: t.status,
         })),
-        approvedUpdates: approvedUpdates.map(u => ({
+        approvedUpdates: approvedUpdates.map((u) => ({
           taskId: u.taskId,
           changes: u.changes,
         })),
       });
-      const updatedIds = new Set(saved.updated.map(u => u.id));
-      setTasks(prev => [
+      const updatedIds = new Set(saved.updated.map((u) => u.id));
+      setTasks((prev) => [
         ...saved.created,
-        ...prev.map(t => (updatedIds.has(t.id) ? saved.updated.find(u => u.id === t.id)! : t)),
+        ...prev.map((t) =>
+          updatedIds.has(t.id) ? saved.updated.find((u) => u.id === t.id)! : t,
+        ),
       ]);
-      addNoteToHistory(pendingExtraction.noteText, saved.created.length + saved.updated.length);
+      addNoteToHistory(
+        pendingExtraction.noteText,
+        saved.created.length + saved.updated.length,
+      );
       setPendingExtraction(null);
       setNoteText("");
     } catch (err: unknown) {
-      if (axios.isAxiosError(err) && err.response?.status === 409) {
-        setExtractError(err.response.data?.detail ?? "Duplicate note.");
-        setPendingExtraction(null);
-      }
+      showAlert(err, "Could not save tasks");
     } finally {
       setIsConfirming(false);
     }
@@ -260,15 +343,22 @@ export default function App() {
   // ── UpdateConfirmationModal handlers ─────────────────────────────────────
 
   const handleConfirmUpdates = async (approved: ProposedUpdate[]) => {
-    // Pass pendingUpdatesNoteId so the backend writes TaskNoteLink audit rows
-    const updated = await confirmUpdates(
-      approved.map(u => ({ taskId: u.taskId, changes: u.changes })),
-      pendingUpdatesNoteId ?? undefined,
-    );
-    setTasks(prev => prev.map(t => updated.find(u => u.id === t.id) ?? t));
-    const remaining = pendingUpdates.filter(u => !approved.some(a => a.taskId === u.taskId));
-    setPendingUpdates(remaining);
-    if (remaining.length === 0) setPendingUpdatesNoteId(null);
+    try {
+      const updated = await confirmUpdates(
+        approved.map((u) => ({ taskId: u.taskId, changes: u.changes })),
+        pendingUpdatesNoteId ?? undefined,
+      );
+      setTasks((prev) =>
+        prev.map((t) => updated.find((u) => u.id === t.id) ?? t),
+      );
+      const remaining = pendingUpdates.filter(
+        (u) => !approved.some((a) => a.taskId === u.taskId),
+      );
+      setPendingUpdates(remaining);
+      if (remaining.length === 0) setPendingUpdatesNoteId(null);
+    } catch (err) {
+      showAlert(err, "Could not apply updates");
+    }
   };
 
   const dismissPendingUpdates = () => {
@@ -280,7 +370,12 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-200">
-      <Sidebar active={view} onNavigate={setView} taskCount={tasks.length} noteCount={notes.length} />
+      <Sidebar
+        active={view}
+        onNavigate={setView}
+        taskCount={tasks.length}
+        noteCount={notes.length}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between gap-4 border-b border-slate-800 bg-slate-950/80 px-6 py-4 backdrop-blur">
@@ -302,7 +397,10 @@ export default function App() {
             <>
               <NoteComposer
                 value={noteText}
-                onChange={v => { setNoteText(v); if (extractError) setExtractError(null); }}
+                onChange={(v) => {
+                  setNoteText(v);
+                  if (extractError) setExtractError(null);
+                }}
                 onExtract={handleExtract}
                 isLoading={isExtracting}
               />
@@ -320,10 +418,54 @@ export default function App() {
                 subtitle="Tasks with both a due date and an owner"
                 count={structuredTasks.length}
                 defaultOpen
+                headerRight={
+                  structuredTasks.length > 5 ? (
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setStructuredPage((prev) => Math.max(1, prev - 1));
+                        }}
+                        disabled={structuredPage === 1}
+                        className="rounded-lg border border-slate-700 bg-slate-900/70 px-2.5 py-1.5 text-xs text-slate-300 transition-colors hover:border-slate-600 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Prev
+                      </button>
+                      <span>
+                        Page {structuredPage} of{" "}
+                        {Math.max(1, Math.ceil(structuredTasks.length / 5))}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setStructuredPage((prev) =>
+                            Math.min(
+                              Math.max(
+                                1,
+                                Math.ceil(structuredTasks.length / 5),
+                              ),
+                              prev + 1,
+                            ),
+                          );
+                        }}
+                        disabled={
+                          structuredPage ===
+                          Math.max(1, Math.ceil(structuredTasks.length / 5))
+                        }
+                        className="rounded-lg border border-slate-700 bg-slate-900/70 px-2.5 py-1.5 text-xs text-slate-300 transition-colors hover:border-slate-600 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  ) : null
+                }
               >
                 <TaskTable
                   tasks={structuredTasks}
                   showDueDate
+                  page={structuredPage}
                   rowDrafts={rowDrafts}
                   onDraftChange={handleDraftChange}
                   onSaveRow={handleSaveRow}
@@ -338,10 +480,55 @@ export default function App() {
                 subtitle="Tasks missing a due date or owner — click any cell to edit, then Save"
                 count={unstructuredTasks.length}
                 defaultOpen={false}
+                headerRight={
+                  unstructuredTasks.length > 5 ? (
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setUnstructuredPage((prev) => Math.max(1, prev - 1));
+                        }}
+                        disabled={unstructuredPage === 1}
+                        className="rounded-lg border border-slate-700 bg-slate-900/70 px-2.5 py-1.5 text-xs text-slate-300 transition-colors hover:border-slate-600 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Prev
+                      </button>
+                      <span>
+                        Page {unstructuredPage} of{" "}
+                        {Math.max(1, Math.ceil(unstructuredTasks.length / 5))}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setUnstructuredPage((prev) =>
+                            Math.min(
+                              Math.max(
+                                1,
+                                Math.ceil(unstructuredTasks.length / 5),
+                              ),
+                              prev + 1,
+                            ),
+                          );
+                        }}
+                        disabled={
+                          unstructuredPage ===
+                          Math.max(1, Math.ceil(unstructuredTasks.length / 5))
+                        }
+                        className="rounded-lg border border-slate-700 bg-slate-900/70 px-2.5 py-1.5 text-xs text-slate-300 transition-colors hover:border-slate-600 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  ) : null
+                }
               >
                 <TaskTable
                   tasks={unstructuredTasks}
                   showDueDate
+                  page={unstructuredPage}
+                  pageSize={5}
                   inlineEditable
                   rowDrafts={rowDrafts}
                   onDraftChange={handleDraftChange}
@@ -353,7 +540,7 @@ export default function App() {
             </>
           ) : (
             <NotesHistory
-              notes={notes.filter(n =>
+              notes={notes.filter((n) =>
                 n.rawText.toLowerCase().includes(search.trim().toLowerCase()),
               )}
             />
@@ -404,6 +591,16 @@ export default function App() {
           isLoadingNotes={isLoadingNoteLinks}
           onClose={() => setSelectedTask(null)}
           onSave={handleDetailSave}
+        />
+      )}
+
+      {/* Global error / warning popup */}
+      {alert && (
+        <AlertPopup
+          type={alert.type}
+          title={alert.title}
+          message={alert.message}
+          onClose={() => setAlert(null)}
         />
       )}
     </div>

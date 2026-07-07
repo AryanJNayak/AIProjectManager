@@ -1,3 +1,5 @@
+from datetime import date as date_type
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -151,6 +153,30 @@ def confirm_all(payload: ConfirmAllRequest, db: Session = Depends(get_db)):
         task = db.query(Task).filter(Task.id == task_id).first()
         if not task:
             continue
+
+        # Done tasks are read-only
+        if task.status == StatusEnum.done:
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    f'Task "{task.description[:60]}" is marked as Done and is read-only. '
+                    "Re-open it by changing its status first."
+                ),
+            )
+
+        # Reject past due-dates coming from the LLM or the user
+        new_due = changes.get("due_date")
+        if new_due:
+            try:
+                d = new_due if isinstance(new_due, date_type) else date_type.fromisoformat(str(new_due))
+                if d < date_type.today():
+                    raise HTTPException(
+                        status_code=422,
+                        detail=f"Due date {d} is in the past. Please use today or a future date.",
+                    )
+            except (ValueError, TypeError):
+                pass  # malformed date — let DB validation catch it
+
         for field, value in changes.items():
             if hasattr(task, field):
                 setattr(task, field, value)
@@ -169,10 +195,8 @@ def confirm_all(payload: ConfirmAllRequest, db: Session = Depends(get_db)):
 def confirm_updates(payload: ConfirmRequest, db: Session = Depends(get_db)):
     """Purpose: Apply confirmed updates to existing tasks.
 
-    When note_id is supplied the endpoint also writes a TaskNoteLink row
-    (link_type='updated') for each approved task, so that the note-history
-    panel in the frontend shows the full audit trail even when no new tasks
-    were created alongside the updates.
+    Rejects edits to Done tasks (403) and past due-dates (422).
+    When note_id is supplied, writes TaskNoteLink audit rows.
 
     Inputs: A ConfirmRequest with the selected task updates, an optional
             note_id, and the database session.
@@ -187,6 +211,17 @@ def confirm_updates(payload: ConfirmRequest, db: Session = Depends(get_db)):
         task = db.query(Task).filter(Task.id == approved.task_id).first()
         if not task:
             continue
+
+        # Done tasks are read-only
+        if task.status == StatusEnum.done:
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    f'Task "{task.description[:60]}" is marked as Done and is read-only. '
+                    "Re-open it by changing its status first."
+                ),
+            )
+
         for field, value in approved.changes.items():
             if hasattr(task, field):
                 setattr(task, field, value)
