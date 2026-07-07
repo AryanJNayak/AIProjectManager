@@ -1,160 +1,204 @@
 # Mini AI Project Manager Assistant
 
-A lightweight project management assistant that converts raw meeting notes into structured tasks, detects whether notes update existing tasks, and lets the user confirm changes before they are saved.
+A smart project management assistant that turns raw meeting notes into structured tasks, detects whether a note refers to a new task or an update to an existing one, and lets the user review and approve changes before they are saved.
+
+## Demo Video
 
 [![Watch the demo](https://drive.google.com/uc?export=view&id=1-Lwi9tS5t37_fU4HZN-pmO30i1kNlTrr)](https://drive.google.com/file/d/1GhVG7Z5D5hMqgfXexZ42KPx9ZBablEBG/view?usp=sharing)
 
-## Project Requirements
+## Project Description
 
-- Accept unstructured meeting notes or task descriptions as input.
-- Extract discrete tasks with inferred owners, deadlines, and priorities.
-- Detect whether a note refers to a new task or an existing one.
-- When an existing task appears to be updated, show the proposed diff and ask the user to confirm before applying changes.
-- Allow the user to edit extracted task fields before saving.
-- Display task data in a list with filters and inline editing.
-- Persist tasks and notes in a relational database.
+This application combines a React frontend, a FastAPI backend, and an LLM-powered extraction pipeline to help teams convert unstructured conversations into actionable project tasks.
 
-## Current Implementation
+It is designed for workflows such as:
+- capturing meeting notes or backlog ideas,
+- extracting tasks with priorities, owners, and deadlines,
+- identifying possible updates to existing tasks,
+- reviewing changes before committing them to the database.
 
-### Backend
-- Python + FastAPI backend in `sourcecode/`.
-- Uses SQLAlchemy models to persist `Task` and `Note` entities to the database.
-- Uses a LangChain extraction pipeline to convert free-form notes into structured task output.
-- Pre-filters open tasks using `rapidfuzz` to identify candidate existing tasks before calling the LLM.
-- The extraction endpoint returns:
-  - `extracted` new task proposals that are not yet stored.
-  - `proposedUpdates` for existing tasks that may need patching.
-- The confirm endpoint applies only user-approved creations and updates.
+## Key Features
 
-### Frontend
-- React + Vite frontend located in `client/`.
-- Styled with Tailwind CSS.
-- Provides a note composer for submitting raw meeting notes.
-- Presents extracted tasks and proposed updates to the user for review.
-- Displays task lists with inline editing and filtering.
-- Uses `axios` to communicate with the FastAPI backend.
+- Accepts unstructured notes as input.
+- Extracts task suggestions using an LLM.
+- Uses retrieval-based context matching to compare new notes against existing tasks.
+- Supports user confirmation before saving changes.
+- Stores tasks and notes in a MySQL database.
+- Provides a modern web UI for task review and management.
+- Supports task export to CSV.
 
-## Architecture
+## Architecture Overview
 
-### High-Level Flow
+This project uses a simple RAG-style workflow with FastAPI and an LLM:
 
-1. User pastes meeting notes into the frontend.
-2. Frontend posts the text to `/api/extract`.
-3. Backend saves the raw note and fetches open tasks as matching context.
-4. The extraction service builds a prompt with the note and candidate existing tasks.
-5. The LLM returns structured task output classified as `new` or `update`.
-6. The frontend asks the user to confirm or edit the extracted items.
-7. The backend applies confirmed creations and updates via `/api/extract/confirm`.
-8. Tasks are stored in the database and displayed in the UI.
+```text
+User Input (Notes) -> React + Vite UI -> FastAPI API
+                                  -> Retrieve relevant existing tasks
+                                  -> Build prompt with context
+                                  -> LLM extracts/updates tasks
+                                  -> User confirms edits
+                                  -> SQLAlchemy + MySQL stores the result
+```
 
-### Component Breakdown
+### How the architecture works
 
-- `client/`
-  - `src/App.tsx` — main application logic and extraction flow.
-  - `src/api/tasksApi.ts` — API layer for fetching tasks, extracting notes, and confirming changes.
-  - `src/components/` — reusable UI components for notes, tasks, sidebar, and tables.
-- `sourcecode/`
-  - `main.py` — FastAPI app startup and router registration.
-  - `api/extract.py` — extraction + confirm routes.
-  - `api/tasks.py` — task CRUD routes.
-  - `api/notes.py` — note listing route.
-  - `services/extraction_chain.py` — LangChain prompt + model pipeline.
-  - `services/matcher.py` — fuzzy candidate selection for existing tasks.
-  - `models/task.py` — SQLAlchemy `Task` and `Note` models.
-  - `schemas/task_schema.py` — Pydantic schemas for validation and LLM contract.
-  - `db/database.py` — database engine and session setup.
-  - `config.py` — environment configuration.
+- Frontend: React + Vite + TypeScript provides the interactive workspace.
+- Backend: FastAPI exposes REST endpoints for extraction, confirmation, task CRUD, notes, and export.
+- Retrieval layer: the app searches existing tasks using fuzzy matching to provide relevant context before calling the LLM.
+- LLM layer: LangChain and an LLM model structure the extracted output into task objects.
+- Data layer: SQLAlchemy connects the app to a MySQL database.
 
-## Technologies
+## Requirements Before You Start
+
+Make sure the following tools are installed on Windows:
+
+- Python 3.12.x
+- Node.js 20.x or 22.x
+- npm 10.x or newer
+- MySQL Server 8.0.x
+- MySQL Workbench 8.x (recommended for database management)
+- Git
+- A valid LLM API key such as a Google Gemini key
+
+## Windows Setup Commands
+
+### 1. Clone the repository
+
+```powershell
+git clone https://github.com/AryanJNayak/AIProjectManager.git
+cd "AI Project Manager"
+```
+
+### 2. Create a Python virtual environment
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+If PowerShell blocks script execution, run:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+```
+
+### 3. Install Python dependencies
+
+```powershell
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### 4. Create the MySQL database
+
+Open MySQL Workbench or MySQL CLI and run:
+
+```sql
+CREATE DATABASE mini_pm_assistant;
+```
+
+### 5. Create the environment file
+
+Create a file named `.env` in the project root and add:
+
+```env
+DATABASE_URL=mysql://root:YOUR_MYSQL_PASSWORD@127.0.0.1:3306/mini_pm_assistant
+GOOGLE_API_KEY=YOUR_LLM_API_KEY
+CORS_ORIGINS=http://localhost:5173
+```
+
+> Replace `root` and `YOUR_MYSQL_PASSWORD` with your actual MySQL credentials.
+
+### 6. Start the backend (FastAPI)
+
+```powershell
+AI Project Manager> python sourcecode/main.py
+```
+
+### 7. Install frontend dependencies
+
+```powershell
+AI Project Manager> cd client
+AI Project Manager\client> npm install
+```
+
+### 8. Start the frontend (React + Vite)
+
+```powershell
+AI Project Manager\client> npm run dev
+```
+
+Open the app in your browser at:
+
+```text
+http://localhost:5173
+```
+
+## Required Environment Variables
+
+The application expects these values in the `.env` file:
+
+- `DATABASE_URL` — MySQL connection string
+- `GOOGLE_API_KEY` — API key for the LLM backend
+- `CORS_ORIGINS` — allowed frontend origins, usually `http://localhost:5173`
+
+## Project Structure
+
+```text
+AI Project Manager/
+├── client/                      # React + Vite frontend
+│   ├── public/
+│   ├── src/
+│   │   ├── api/
+│   │   ├── components/
+│   │   ├── hooks/
+│   │   ├── types/
+│   │   ├── App.tsx
+│   │   └── main.tsx
+│   ├── package.json
+│   └── vite.config.js
+├── sourcecode/                  # FastAPI backend
+│   ├── api/
+│   ├── db/
+│   ├── models/
+│   ├── schemas/
+│   ├── services/
+│   ├── config.py
+│   └── main.py
+├── requirements.txt
+├── README.MD
+└── .env
+```
+
+## Main Technologies
 
 ### Backend
 - FastAPI
-- Python 3.12+
+- Python 3.12
 - SQLAlchemy
 - Pydantic
 - LangChain
 - RapidFuzz
-- MySQL (via SQLAlchemy)
+- MySQL
 - Uvicorn
 
 ### Frontend
 - React
 - Vite
+- TypeScript
 - Tailwind CSS
 - Axios
-- TypeScript
 
-### AI / Extraction
-- LangChain structured output
-- LLM provider via `GOOGLE_API_KEY` (or other supported model backends)
-- Candidate task reconciliation with fuzzy matching
+## API Overview
 
-## Setup Commands
-
-### 1. Install backend dependencies
-
-From the repo root:
-
-```bash
-python -m venv .venv
-# Windows
-.\.venv\Scripts\activate
-# macOS/Linux
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-### 2. Configure environment
-
-Create a `.env` file in the repo root with:
-
-```env
-DATABASE_URL=mysql://user:password@localhost/mini_pm_assistant
-GOOGLE_API_KEY=your_api_key_here
-CORS_ORIGINS=http://localhost:5173
-```
-
-### 3. Run the backend
-
-```bash
-python .\sourcecode\main.py
-```
-
-or with Uvicorn:
-
-```bash
-uvicorn sourcecode.main:app --reload
-```
-
-### 4. Install frontend dependencies
-
-```bash
-cd client
-npm install
-```
-
-### 5. Run the frontend
-
-```bash
-npm run dev
-```
-
-Open the app at the address shown by Vite (typically `http://localhost:5173`).
-
-## API Endpoints
-
-| Method | Endpoint              | Purpose |
-|---|---|---|
-| POST | `/api/extract` | Extract tasks from raw notes and propose updates. |
-| POST | `/api/extract/confirm` | Save confirmed new tasks and apply approved updates. |
-| GET | `/api/tasks` | List tasks. |
-| GET | `/api/tasks/{id}` | Retrieve a single task. |
-| PATCH | `/api/tasks/{id}` | Update a task. |
-| DELETE | `/api/tasks/{id}` | Delete a task. |
-| GET | `/api/tasks/export` | Export tasks as CSV. |
-| GET | `/api/notes` | List saved note submissions with task counts. |
+Main API routes include:
+- `POST /api/extract` — extract tasks from notes and propose updates
+- `POST /api/extract/confirm` — save approved task changes
+- `GET /api/tasks` — list tasks
+- `GET /api/notes` — list saved notes
+- `GET /api/tasks/export` — export tasks as CSV
 
 ## Notes
 
-- The frontend currently uses a confirmation/edit flow for extracted tasks, so the user can review and modify extracted output before saving.
-- The backend reconciles new notes against existing open tasks and avoids duplicate task creation by identifying updates to previous work.
+- The backend uses a confirmation flow so users can review and edit extracted tasks before saving them.
+- The retrieval layer helps reduce duplicate tasks by comparing new notes with already existing work items.
+
