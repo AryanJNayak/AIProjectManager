@@ -36,6 +36,9 @@ class Note(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     tasks = relationship("Task", back_populates="note")
+    task_links = relationship(
+        "TaskNoteLink", back_populates="note", cascade="all, delete-orphan"
+    )
 
 
 class Task(Base):
@@ -52,3 +55,31 @@ class Task(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     note = relationship("Note", back_populates="tasks")
+    note_links = relationship(
+        "TaskNoteLink", back_populates="task", cascade="all, delete-orphan"
+    )
+
+
+class TaskNoteLink(Base):
+    """Junction table that records every note that created or updated a task.
+
+    This allows the UI to show the full audit trail of which notes touched a
+    given task, ordered by created_at DESC.
+    """
+
+    __tablename__ = "task_note_links"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    task_id = Column(
+        Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False
+    )
+    note_id = Column(
+        Integer, ForeignKey("notes.id", ondelete="CASCADE"), nullable=False
+    )
+    # "created" — the note that originally generated this task
+    # "updated" — a later note that modified the task via the PM approval flow
+    link_type = Column(String(20), nullable=False, default="created")
+    created_at = Column(DateTime, server_default=func.now())
+
+    task = relationship("Task", back_populates="note_links")
+    note = relationship("Note", back_populates="task_links")

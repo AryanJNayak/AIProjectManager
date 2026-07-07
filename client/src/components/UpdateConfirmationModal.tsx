@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { ProposedUpdate } from '../types/task';
+import { useState } from "react";
+import type { ProposedUpdate } from "../types/task";
 
 interface UpdateConfirmationModalProps {
   proposedUpdates: ProposedUpdate[];
@@ -8,15 +8,15 @@ interface UpdateConfirmationModalProps {
 }
 
 const FIELD_LABELS: Record<string, string> = {
-  priority: 'Priority',
-  dueDate: 'Due date',
-  owner: 'Owner',
-  status: 'Status',
-  description: 'Description',
+  priority: "Priority",
+  dueDate: "Due date",
+  owner: "Owner",
+  status: "Status",
+  description: "Description",
 };
 
 function formatValue(value: unknown): string {
-  if (value === null || value === undefined || value === '') return '—';
+  if (value === null || value === undefined || value === "") return "—";
   return String(value);
 }
 
@@ -62,11 +62,12 @@ export function UpdateConfirmationModal({
           </p>
           <h2 className="mt-1 text-base font-semibold text-slate-100">
             {proposedUpdates.length === 1
-              ? 'This looks like an update to an existing task'
+              ? "This looks like an update to an existing task"
               : `These look like updates to ${proposedUpdates.length} existing tasks`}
           </h2>
           <p className="mt-1 text-xs text-slate-500">
-            Nothing has been changed yet. Uncheck anything you don't want applied.
+            Nothing has been changed yet. Uncheck anything you don't want
+            applied.
           </p>
         </div>
 
@@ -80,8 +81,8 @@ export function UpdateConfirmationModal({
                 key={update.taskId}
                 className={`block cursor-pointer rounded-xl border px-4 py-3 transition-colors ${
                   isChecked
-                    ? 'border-teal-400/30 bg-teal-400/5'
-                    : 'border-slate-800 bg-slate-950/40'
+                    ? "border-teal-400/30 bg-teal-400/5"
+                    : "border-slate-800 bg-slate-950/40"
                 }`}
               >
                 <div className="flex items-start gap-3">
@@ -101,20 +102,29 @@ export function UpdateConfirmationModal({
 
                     <div className="space-y-1.5">
                       {changeEntries.map(([field, newValue]) => {
-                        const oldValue = update.current[field as keyof typeof update.current];
+                        const oldValue =
+                          update.current[field as keyof typeof update.current];
                         return (
                           <div
                             key={field}
                             className="flex items-center gap-2 text-xs"
                           >
-                            <span className="w-20 flex-shrink-0 text-slate-500">
+                            <span className="w-20 shrink-0 text-slate-500">
                               {FIELD_LABELS[field] ?? field}
                             </span>
                             <span className="rounded bg-slate-800 px-2 py-0.5 font-mono text-slate-400 line-through decoration-slate-600">
                               {formatValue(oldValue)}
                             </span>
-                            <svg viewBox="0 0 12 8" className="h-2 w-3 flex-shrink-0 text-slate-600">
-                              <path d="M0 4H11M11 4L7.5 0.5M11 4L7.5 7.5" stroke="currentColor" strokeWidth="1.3" fill="none" />
+                            <svg
+                              viewBox="0 0 12 8"
+                              className="h-2 w-3 shrink-0 text-slate-600"
+                            >
+                              <path
+                                d="M0 4H11M11 4L7.5 0.5M11 4L7.5 7.5"
+                                stroke="currentColor"
+                                strokeWidth="1.3"
+                                fill="none"
+                              />
                             </svg>
                             <span className="rounded bg-teal-400/10 px-2 py-0.5 font-mono font-medium text-teal-300">
                               {formatValue(newValue)}
@@ -146,8 +156,8 @@ export function UpdateConfirmationModal({
             className="rounded-lg bg-teal-400 px-4 py-2 text-sm font-semibold text-slate-950 transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
           >
             {isSubmitting
-              ? 'Applying…'
-              : `Apply ${selected.size} update${selected.size === 1 ? '' : 's'}`}
+              ? "Applying…"
+              : `Apply ${selected.size} update${selected.size === 1 ? "" : "s"}`}
           </button>
         </div>
       </div>

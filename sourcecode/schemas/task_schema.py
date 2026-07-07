@@ -53,7 +53,19 @@ class TaskOut(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
-# ---------- LLM extraction contract (Section 5.2 of the plan) ----------
+# ---------- Note history link ----------
+
+class NoteLinkOut(BaseModel):
+    """A note that created or updated a specific task — used for the task detail view."""
+    note_id: int = Field(serialization_alias="noteId")
+    note_text: str = Field(serialization_alias="noteText")
+    link_type: str = Field(serialization_alias="linkType")   # "created" | "updated"
+    created_at: datetime = Field(serialization_alias="createdAt")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+# ---------- LLM extraction contract ----------
 
 class ExtractedNewTask(BaseModel):
     action: Literal["new"]
@@ -77,10 +89,20 @@ class ExtractionResult(BaseModel):
     tasks: List[ExtractedNewTask | ExtractedUpdateTask]
 
 
-# ---------- /api/extract request/response ----------
+# ---------- /api/extract preview response (nothing saved yet) ----------
 
-class ExtractRequest(BaseModel):
-    text: str = Field(min_length=1, max_length=40000)  # ~5,000 words safety cap
+class ProposedNewTask(BaseModel):
+    """A new task from the LLM — not yet persisted. Returned for user review."""
+    description: str
+    due_date: Optional[str] = Field(
+        default=None,
+        serialization_alias="dueDate",
+        description="YYYY-MM-DD or null",
+    )
+    owner: Optional[str] = None
+    priority: Priority = Priority.Medium
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class ProposedUpdate(BaseModel):
@@ -92,12 +114,51 @@ class ProposedUpdate(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class ExtractRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=40000)
+
+
 class ExtractResponse(BaseModel):
-    created: List[TaskOut]
-    proposed_updates: List[ProposedUpdate] = Field(serialization_alias="proposedUpdates")
+    """Extraction preview — NOTHING is written to the DB until /api/extract/confirm-all."""
+    note_text: str = Field(serialization_alias="noteText")
+    structured_new: List[ProposedNewTask] = Field(
+        default_factory=list, serialization_alias="structuredNew"
+    )
+    unstructured_new: List[ProposedNewTask] = Field(
+        default_factory=list, serialization_alias="unstructuredNew"
+    )
+    proposed_updates: List[ProposedUpdate] = Field(
+        default_factory=list, serialization_alias="proposedUpdates"
+    )
 
     model_config = ConfigDict(populate_by_name=True)
 
+
+# ---------- /api/extract/confirm-all (deferred save) ----------
+
+class ConfirmNewTaskInput(BaseModel):
+    """A user-reviewed new task ready to be persisted (description is immutable)."""
+    description: str
+    due_date: Optional[date] = None
+    owner: Optional[str] = None
+    priority: Priority = Priority.Medium
+    status: Status = Status.todo
+
+
+class ConfirmAllRequest(BaseModel):
+    """Save note + all new tasks + apply approved updates in one DB transaction."""
+    note_text: str
+    tasks_to_create: List[ConfirmNewTaskInput]
+    approved_updates: List[dict] = []   # [{task_id, changes}]
+
+
+class ConfirmAllResponse(BaseModel):
+    note_id: int = Field(serialization_alias="noteId")   # ID of the saved note for audit-link chaining
+    created: List[TaskOut]
+    updated: List[TaskOut]
+
+
+# ---------- /api/extract/confirm (existing-task updates only) ----------
 
 class approvedUpdate(BaseModel):
     task_id: int
@@ -106,10 +167,16 @@ class approvedUpdate(BaseModel):
 
 class ConfirmRequest(BaseModel):
     approved: List[approvedUpdate]
+    # When provided, a TaskNoteLink(type='updated') is written for every
+    # approved task so the note-history panel stays complete.
+    note_id: Optional[int] = None
 
 
 class ConfirmResponse(BaseModel):
     updated: List[TaskOut]
+
+
+# ---------- /api/notes ----------
 
 class NoteOut(BaseModel):
     id: int

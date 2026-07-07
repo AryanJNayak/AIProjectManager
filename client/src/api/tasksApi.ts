@@ -1,5 +1,16 @@
 import axios from 'axios';
-import type { ExtractionResponse, NoteEntry, Task } from '../types/task';
+import type {
+  ConfirmAllResponse,
+  ExtractionResponse,
+  NoteEntry,
+  NoteLink,
+  ProposedNewTask,
+  ProposedUpdate,
+  Task,
+  TaskDraft,
+  TaskPriority,
+  TaskStatus,
+} from '../types/task';
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api',
@@ -7,97 +18,57 @@ const apiClient = axios.create({
 });
 
 // ---------------------------------------------------------------------------
-// Key conversion helpers
+// Key-conversion helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Convert a Partial<Task> (camelCase frontend keys) to the snake_case payload
- * expected by the backend PATCH /api/tasks/{id} endpoint.
- */
-function taskUpdatesToSnakeCase(updates: Partial<Task>): Record<string, unknown> {
+function taskDraftToSnakeCase(updates: TaskDraft): Record<string, unknown> {
   const result: Record<string, unknown> = {};
-  if (updates.description !== undefined) result.description = updates.description;
-  if (updates.dueDate !== undefined) result.due_date = updates.dueDate;
-  if (updates.owner !== undefined) result.owner = updates.owner;
+  if (updates.dueDate !== undefined) result.due_date = updates.dueDate || null;
+  if (updates.owner !== undefined) result.owner = updates.owner || null;
   if (updates.priority !== undefined) result.priority = updates.priority;
   if (updates.status !== undefined) result.status = updates.status;
   return result;
 }
 
-/**
- * Normalize the backend extract response to camelCase.
- * The backend now emits camelCase via serialization_alias, but we also guard
- * against older snake_case responses for resilience.
- */
 function normalizeExtractionResponse(raw: Record<string, unknown>): ExtractionResponse {
-  const created = (raw.created ?? []) as Task[];
-
-  // Support both camelCase (aliased) and snake_case (legacy) response shapes
-  const rawUpdates = (raw.proposedUpdates ?? raw.proposed_updates ?? []) as Array<
-    Record<string, unknown>
-  >;
-
-  const proposedUpdates = rawUpdates.map((u) => ({
+  const mapNew = (t: Record<string, unknown>): ProposedNewTask => ({
+    description: t.description as string,
+    dueDate: (t.dueDate ?? t.due_date) as string | undefined,
+    owner: t.owner as string | undefined,
+    priority: (t.priority ?? 'Medium') as TaskPriority,
+  });
+  const mapUpdate = (u: Record<string, unknown>): ProposedUpdate => ({
     taskId: (u.taskId ?? u.task_id) as number,
     description: u.description as string,
     current: (u.current ?? {}) as Record<string, unknown>,
     changes: (u.changes ?? {}) as Record<string, unknown>,
-  }));
-
-  return { created, proposedUpdates };
+  });
+  return {
+    noteText: (raw.noteText ?? raw.note_text ?? '') as string,
+    structuredNew: ((raw.structuredNew ?? raw.structured_new ?? []) as Array<Record<string, unknown>>).map(mapNew),
+    unstructuredNew: ((raw.unstructuredNew ?? raw.unstructured_new ?? []) as Array<Record<string, unknown>>).map(mapNew),
+    proposedUpdates: ((raw.proposedUpdates ?? raw.proposed_updates ?? []) as Array<Record<string, unknown>>).map(mapUpdate),
+  };
 }
 
 // ---------------------------------------------------------------------------
-// Mock fallbacks (used when the backend is unreachable)
+// Mock fallbacks
 // ---------------------------------------------------------------------------
 
 const mockTasks: Task[] = [];
-
 const mockNotes: NoteEntry[] = [];
 
 function buildMockExtraction(text: string): ExtractionResponse {
   const normalized = text.toLowerCase();
-  const created: Task[] = [];
-  const now = new Date().toISOString();
-
+  const structuredNew: ProposedNewTask[] = [];
+  const unstructuredNew: ProposedNewTask[] = [];
   if (normalized.includes('launch') || normalized.includes('release')) {
-    created.push({
-      id: Date.now(),
-      description: 'Launch readiness review — capture the release follow-ups from the latest notes.',
-      owner: 'Lina',
-      priority: 'High',
-      status: 'To Do',
-      dueDate: '2026-07-14',
-      source: 'AI extraction (mock)',
-      createdAt: now,
-      updatedAt: now,
-    });
+    structuredNew.push({ description: 'Launch readiness review.', dueDate: '2026-07-14', owner: 'Lina', priority: 'High' });
   }
   if (normalized.includes('budget') || normalized.includes('finance')) {
-    created.push({
-      id: Date.now() + 1,
-      description: 'Finance review — track the financial follow-up requested in the notes.',
-      owner: 'Noah',
-      priority: 'Medium',
-      status: 'To Do',
-      dueDate: '2026-07-16',
-      source: 'AI extraction (mock)',
-      createdAt: now,
-      updatedAt: now,
-    });
+    unstructuredNew.push({ description: 'Finance review.', priority: 'Medium' });
   }
-
-  return {
-    created,
-    proposedUpdates: [
-      {
-        taskId: 1,
-        description: 'Prepare Q3 roadmap',
-        current: { priority: 'Medium', dueDate: '2026-07-10' },
-        changes: { priority: 'High', dueDate: '2026-07-11' },
-      },
-    ],
-  };
+  return { noteText: text, structuredNew, unstructuredNew, proposedUpdates: [] };
 }
 
 // ---------------------------------------------------------------------------
@@ -106,68 +77,92 @@ function buildMockExtraction(text: string): ExtractionResponse {
 
 export async function getTasks(): Promise<Task[]> {
   try {
-    const response = await apiClient.get<Task[]>('/tasks');
-    return response.data;
-  } catch {
-    return mockTasks;
-  }
+    return (await apiClient.get<Task[]>('/tasks')).data;
+  } catch { return mockTasks; }
 }
 
 export async function getNotesHistory(): Promise<NoteEntry[]> {
   try {
-    const response = await apiClient.get<NoteEntry[]>('/notes');
-    return response.data;
-  } catch {
-    return mockNotes;
-  }
+    return (await apiClient.get<NoteEntry[]>('/notes')).data;
+  } catch { return mockNotes; }
 }
 
+export async function getTaskNotes(taskId: number): Promise<NoteLink[]> {
+  try {
+    return (await apiClient.get<NoteLink[]>(`/tasks/${taskId}/notes`)).data;
+  } catch { return []; }
+}
+
+/** POST /api/extract — LLM preview. Nothing is saved until confirmAll(). */
 export async function extractTasksFromNotes(text: string): Promise<ExtractionResponse> {
   try {
     const response = await apiClient.post<Record<string, unknown>>('/extract', { text });
     return normalizeExtractionResponse(response.data);
-  } catch {
-    return buildMockExtraction(text);
-  }
+  } catch { return buildMockExtraction(text); }
 }
 
-export async function confirmUpdates(
-  approved: { taskId: number; changes: Record<string, unknown> }[],
-): Promise<Task[]> {
+/** POST /api/extract/confirm-all — save note + tasks + apply updates atomically.
+ *  Re-throws 409 (duplicate note) so the caller can surface the error. */
+export async function confirmAll(payload: {
+  noteText: string;
+  tasksToCreate: Array<{ description: string; dueDate?: string | null; owner?: string | null; priority: TaskPriority; status: TaskStatus }>;
+  approvedUpdates?: Array<{ taskId: number; changes: Record<string, unknown> }>;
+}): Promise<ConfirmAllResponse> {
   const body = {
-    approved: approved.map((a) => ({ task_id: a.taskId, changes: a.changes })),
+    note_text: payload.noteText,
+    tasks_to_create: payload.tasksToCreate.map(t => ({
+      description: t.description,
+      due_date: t.dueDate || null,
+      owner: t.owner || null,
+      priority: t.priority,
+      status: t.status,
+    })),
+    approved_updates: (payload.approvedUpdates ?? []).map(u => ({
+      task_id: u.taskId,
+      changes: u.changes,
+    })),
   };
   try {
-    const response = await apiClient.post<{ updated: Task[] }>('/extract/confirm', body);
-    return response.data.updated;
-  } catch {
-    // Best-effort local fallback: merge the changes directly so the UI still responds.
+    return (await apiClient.post<ConfirmAllResponse>('/extract/confirm-all', body)).data;
+  } catch (err: unknown) {
+    if (axios.isAxiosError(err) && err.response) throw err; // re-throw HTTP errors (409 etc.)
     const now = new Date().toISOString();
-    return approved.map((a) => ({
-      id: a.taskId,
-      ...a.changes,
-      updatedAt: now,
-    })) as Task[];
+    return {
+      created: payload.tasksToCreate.map((t, i) => ({
+        id: Date.now() + i, description: t.description,
+        owner: t.owner ?? undefined, priority: t.priority, status: t.status,
+        dueDate: t.dueDate ?? undefined, createdAt: now, updatedAt: now,
+      })),
+      updated: [],
+    };
   }
 }
 
-export async function updateTask(taskId: number, updates: Partial<Task>): Promise<Task> {
+/** POST /api/extract/confirm — apply updates to existing tasks only.
+ *  noteId should be the ID returned by the preceding confirmAll() call so the
+ *  backend can write TaskNoteLink audit rows for every approved update. */
+export async function confirmUpdates(
+  approved: { taskId: number; changes: Record<string, unknown> }[],
+  noteId?: number,
+): Promise<Task[]> {
+  const body = {
+    approved: approved.map(a => ({ task_id: a.taskId, changes: a.changes })),
+    note_id: noteId ?? null,
+  };
   try {
-    // Convert frontend camelCase keys to the snake_case the backend expects
-    const payload = taskUpdatesToSnakeCase(updates);
-    const response = await apiClient.patch<Task>(`/tasks/${taskId}`, payload);
-    return response.data;
+    return (await apiClient.post<{ updated: Task[] }>('/extract/confirm', body)).data.updated;
+  } catch {
+    return approved.map(a => ({ id: a.taskId, ...a.changes, updatedAt: new Date().toISOString() } as Task));
+  }
+}
+
+/** PATCH /api/tasks/{id} — apply a TaskDraft to the database. */
+export async function updateTask(taskId: number, updates: TaskDraft): Promise<Task> {
+  try {
+    const payload = taskDraftToSnakeCase(updates);
+    return (await apiClient.patch<Task>(`/tasks/${taskId}`, payload)).data;
   } catch {
     const now = new Date().toISOString();
-    return {
-      id: taskId,
-      description: 'Locally updated in the UI.',
-      owner: 'Unassigned',
-      priority: 'Medium',
-      status: 'To Do',
-      createdAt: now,
-      updatedAt: now,
-      ...updates,
-    } as Task;
+    return { id: taskId, description: '', priority: 'Medium', status: 'To Do', createdAt: now, updatedAt: now, ...updates } as Task;
   }
 }

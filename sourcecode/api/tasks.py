@@ -2,11 +2,12 @@ from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from db.database import get_db
-from models.task import Task
-from schemas.task_schema import TaskOut, TaskUpdate, Priority, Status
+from models.task import Task, Note, TaskNoteLink
+from schemas.task_schema import TaskOut, TaskUpdate, Priority, Status, NoteLinkOut
 from services.csv_export import tasks_to_csv
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
@@ -71,6 +72,40 @@ def export_tasks(
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=tasks.csv"},
     )
+
+
+@router.get("/{task_id}/notes", response_model=List[NoteLinkOut])
+def get_task_notes(task_id: int, db: Session = Depends(get_db)):
+    """Purpose: Return the full note audit trail for a task, newest first.
+
+    Inputs: task_id path parameter and DB session.
+
+    Outputs: List of NoteLinkOut — each entry carries the note text, link type
+             ('created' or 'updated'), and the timestamp of the link.
+
+    Example: GET /api/tasks/42/notes
+    """
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    rows = (
+        db.query(TaskNoteLink, Note)
+        .join(Note, TaskNoteLink.note_id == Note.id)
+        .filter(TaskNoteLink.task_id == task_id)
+        .order_by(desc(TaskNoteLink.created_at))
+        .all()
+    )
+
+    return [
+        NoteLinkOut(
+            note_id=link.note_id,
+            note_text=note.raw_text,
+            link_type=link.link_type,
+            created_at=link.created_at or note.created_at,
+        )
+        for link, note in rows
+    ]
 
 
 @router.get("/{task_id}", response_model=TaskOut)

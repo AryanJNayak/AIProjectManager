@@ -1,4 +1,6 @@
-export type View = 'tasks' | 'notes';
+import { JSX } from "react/jsx-runtime";
+
+export type View = "tasks" | "notes";
 
 interface SidebarProps {
   active: View;
@@ -7,11 +9,21 @@ interface SidebarProps {
   noteCount: number;
 }
 
-export function Sidebar({ active, onNavigate, taskCount, noteCount }: SidebarProps) {
-  const items: Array<{ id: View; label: string; count: number; icon: JSX.Element }> = [
+export function Sidebar({
+  active,
+  onNavigate,
+  taskCount,
+  noteCount,
+}: SidebarProps) {
+  const items: Array<{
+    id: View;
+    label: string;
+    count: number;
+    icon: JSX.Element;
+  }> = [
     {
-      id: 'tasks',
-      label: 'Tasks',
+      id: "tasks",
+      label: "Tasks",
       count: taskCount,
       icon: (
         <path
@@ -23,8 +35,8 @@ export function Sidebar({ active, onNavigate, taskCount, noteCount }: SidebarPro
       ),
     },
     {
-      id: 'notes',
-      label: 'Notes history',
+      id: "notes",
+      label: "Notes history",
       count: noteCount,
       icon: (
         <path
@@ -39,7 +51,7 @@ export function Sidebar({ active, onNavigate, taskCount, noteCount }: SidebarPro
   ];
 
   return (
-    <aside className="flex h-full w-60 flex-shrink-0 flex-col border-r border-slate-800 bg-slate-950/60 px-3 py-5">
+    <aside className="flex h-full w-60 shrink-0 flex-col border-r border-slate-800 bg-slate-950/60 px-3 py-5">
       <div className="mb-6 flex items-center gap-2 px-2">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-400/10 text-teal-300">
           <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor">
@@ -66,8 +78,8 @@ export function Sidebar({ active, onNavigate, taskCount, noteCount }: SidebarPro
               onClick={() => onNavigate(item.id)}
               className={`group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors ${
                 isActive
-                  ? 'bg-teal-400/10 text-teal-300'
-                  : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+                  ? "bg-teal-400/10 text-teal-300"
+                  : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
               }`}
             >
               <span className="flex items-center gap-2.5">
@@ -79,8 +91,8 @@ export function Sidebar({ active, onNavigate, taskCount, noteCount }: SidebarPro
               <span
                 className={`rounded-full px-2 py-0.5 font-mono text-[11px] tabular-nums ${
                   isActive
-                    ? 'bg-teal-400/15 text-teal-300'
-                    : 'bg-slate-800 text-slate-500'
+                    ? "bg-teal-400/15 text-teal-300"
+                    : "bg-slate-800 text-slate-500"
                 }`}
               >
                 {item.count}
@@ -92,8 +104,8 @@ export function Sidebar({ active, onNavigate, taskCount, noteCount }: SidebarPro
 
       <div className="mt-auto rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-3">
         <p className="text-xs leading-relaxed text-slate-500">
-          Extraction runs through the LLM, then lands here for review before anything
-          overwrites existing work.
+          Extraction runs through the LLM, then lands here for review before
+          anything overwrites existing work.
         </p>
       </div>
     </aside>
