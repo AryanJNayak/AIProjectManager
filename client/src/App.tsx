@@ -1,132 +1,189 @@
 import { useEffect, useMemo, useState } from "react";
-import "./App.css";
-import { extractTasksFromNotes, getTasks, updateTask } from "./api/tasksApi";
+import { Sidebar, type View } from "./components/Sidebar";
+import { SearchBar } from "./components/SearchBar";
+import { CollapsibleSection } from "./components/CollapsibleSection";
+import { TaskTable } from "./components/TaskTable";
+import { NotesHistory } from "./components/NotesHistory";
 import { NoteComposer } from "./components/NoteComposer";
-import { TaskBoard } from "./components/TaskBoard";
-import { TaskFilters } from "./components/TaskFilters";
+import { UpdateConfirmationModal } from "./components/UpdateConfirmationModal";
+import {
+  getNotesHistory,
+  getTasks,
+  updateTask,
+  extractTasksFromNotes,
+  confirmUpdates,
+} from "./api/tasksApi";
 import type {
-  ExtractionResponse,
+  NoteEntry,
+  ProposedUpdate,
   Task,
-  TaskFilters as TaskFiltersType,
   TaskPriority,
   TaskStatus,
 } from "./types/task";
 
-function App() {
-  const [notes, setNotes] = useState("");
+export default function App() {
+  const [view, setView] = useState<View>("tasks");
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [filters, setFilters] = useState<TaskFiltersType>({
-    owner: "",
-    status: "All",
-    priority: "All",
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const [insight, setInsight] = useState("");
+  const [notes, setNotes] = useState<NoteEntry[]>([]);
+  const [search, setSearch] = useState("");
+  const [noteText, setNoteText] = useState("");
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [pendingUpdates, setPendingUpdates] = useState<ProposedUpdate[]>([]);
 
   useEffect(() => {
-    const loadTasks = async () => {
-      const response = await getTasks();
-      setTasks(response);
-    };
-
-    void loadTasks();
+    getTasks().then(setTasks);
+    getNotesHistory().then(setNotes);
   }, []);
 
-  const visibleTasks = useMemo(() => {
-    return tasks.filter((task) => {
-      const ownerMatch =
-        filters.owner.trim().length === 0 ||
-        task.owner.toLowerCase().includes(filters.owner.toLowerCase());
-      const statusMatch =
-        filters.status === "All" || task.status === filters.status;
-      const priorityMatch =
-        filters.priority === "All" || task.priority === filters.priority;
-      return ownerMatch && statusMatch && priorityMatch;
-    });
-  }, [filters, tasks]);
+  const filteredTasks = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return tasks;
+    return tasks.filter((task) =>
+      [task.title, task.description, task.owner]
+        .filter(Boolean)
+        .some((field) => field!.toLowerCase().includes(query)),
+    );
+  }, [tasks, search]);
+
+  const datedTasks = filteredTasks.filter((t) => t.dueDate);
+  const undatedTasks = filteredTasks.filter((t) => !t.dueDate);
+
+  const applyTaskUpdate = async (task: Task, updates: Partial<Task>) => {
+    const optimistic = {
+      ...task,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+    setTasks((prev) => prev.map((t) => (t.id === task.id ? optimistic : t)));
+    const saved = await updateTask(task.id, updates);
+    setTasks((prev) => prev.map((t) => (t.id === task.id ? saved : t)));
+  };
+
+  const handleStatusChange = (task: Task, status: TaskStatus) =>
+    applyTaskUpdate(task, { status });
+
+  const handlePriorityChange = (task: Task, priority: TaskPriority) =>
+    applyTaskUpdate(task, { priority });
 
   const handleExtract = async () => {
-    if (!notes.trim()) {
-      setInsight(
-        "Add a few notes first so the assistant has something to analyze.",
-      );
-      return;
-    }
-
-    setIsLoading(true);
+    if (!noteText.trim()) return;
+    setIsExtracting(true);
     try {
-      const response: ExtractionResponse = await extractTasksFromNotes(notes);
-      setTasks((current) => [...response.created, ...current]);
-      setInsight(
-        response.created.length > 0
-          ? `Captured ${response.created.length} new task${response.created.length > 1 ? "s" : ""} and found ${response.proposedUpdates.length} update suggestion${response.proposedUpdates.length > 1 ? "s" : ""}.`
-          : "No new tasks were extracted. Review the updates suggestions and refine the notes if needed.",
-      );
+      const result = await extractTasksFromNotes(noteText);
+      if (result.created.length) {
+        setTasks((prev) => [...result.created, ...prev]);
+      }
+      if (result.proposedUpdates.length) {
+        setPendingUpdates((prev) => [...result.proposedUpdates, ...prev]);
+      }
+      setNotes((prev) => [
+        {
+          id: Date.now(),
+          rawText: noteText,
+          createdAt: new Date().toISOString(),
+          taskCount: result.created.length + result.proposedUpdates.length,
+        },
+        ...prev,
+      ]);
+      setNoteText("");
     } finally {
-      setIsLoading(false);
+      setIsExtracting(false);
     }
   };
 
-  const handleStatusChange = async (task: Task, status: TaskStatus) => {
-    const updatedTask = await updateTask(task.id, { status });
-    setTasks((current) =>
-      current.map((item) => (item.id === task.id ? updatedTask : item)),
+  const handleConfirmUpdates = async (approved: ProposedUpdate[]) => {
+    const updated = await confirmUpdates(
+      approved.map((u) => ({ taskId: u.taskId, changes: u.changes })),
+    );
+    setTasks((prev) =>
+      prev.map((t) => updated.find((u) => u.id === t.id) ?? t),
+    );
+    setPendingUpdates((prev) =>
+      prev.filter((u) => !approved.some((a) => a.taskId === u.taskId)),
     );
   };
 
-  const handlePriorityChange = async (task: Task, priority: TaskPriority) => {
-    const updatedTask = await updateTask(task.id, { priority });
-    setTasks((current) =>
-      current.map((item) => (item.id === task.id ? updatedTask : item)),
-    );
-  };
+  const dismissPendingUpdates = () => setPendingUpdates([]);
 
   return (
-    <div className="dashboard-shell">
-      <header className="hero-panel">
-        <div>
-          <p className="eyebrow">Modern PM workspace</p>
-          <h1>Turn discussions into clear execution plans.</h1>
-          <p className="hero-copy">
-            Guide your team with AI-assisted extraction, live task tracking, and
-            focused delivery views.
-          </p>
-        </div>
-        <div className="hero-stats">
-          <div>
-            <strong>
-              {tasks.filter((task) => task.status !== "Done").length}
-            </strong>
-            <span>Open tasks</span>
-          </div>
-          <div>
-            <strong>
-              {tasks.filter((task) => task.priority === "High").length}
-            </strong>
-            <span>High priority</span>
-          </div>
-        </div>
-      </header>
+    <div className="flex min-h-screen bg-slate-950 text-slate-200">
+      <Sidebar
+        active={view}
+        onNavigate={setView}
+        taskCount={tasks.length}
+        noteCount={notes.length}
+      />
 
-      <div className="content-grid">
-        <NoteComposer
-          value={notes}
-          onChange={setNotes}
-          onExtract={handleExtract}
-          isLoading={isLoading}
-        />
-        <TaskFilters filters={filters} onChange={setFilters} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex items-center justify-between gap-4 border-b border-slate-800 bg-slate-950/80 px-6 py-4 backdrop-blur">
+          <div>
+            <h1 className="text-lg font-semibold text-slate-100">
+              {view === "tasks" ? "Tasks" : "Notes history"}
+            </h1>
+            <p className="text-xs text-slate-500">
+              {view === "tasks"
+                ? "Grouped by whether a due date has been set"
+                : "Every note that has been run through extraction"}
+            </p>
+          </div>
+          <SearchBar value={search} onChange={setSearch} />
+        </header>
+
+        <main className="flex-1 space-y-5 overflow-y-auto px-6 py-6">
+          {view === "tasks" ? (
+            <>
+              <NoteComposer
+                value={noteText}
+                onChange={setNoteText}
+                onExtract={handleExtract}
+                isLoading={isExtracting}
+              />
+
+              <CollapsibleSection
+                title="Structured"
+                subtitle="Tasks with a proper data"
+                count={datedTasks.length}
+                defaultOpen
+              >
+                <TaskTable
+                  tasks={datedTasks}
+                  showDueDate
+                  onStatusChange={handleStatusChange}
+                  onPriorityChange={handlePriorityChange}
+                />
+              </CollapsibleSection>
+
+              <CollapsibleSection
+                title="Unstructured"
+                subtitle="Tasks without a proper data"
+                count={undatedTasks.length}
+                defaultOpen={false}
+              >
+                <TaskTable
+                  tasks={undatedTasks}
+                  showDueDate={false}
+                  onStatusChange={handleStatusChange}
+                  onPriorityChange={handlePriorityChange}
+                />
+              </CollapsibleSection>
+            </>
+          ) : (
+            <NotesHistory
+              notes={notes.filter((n) =>
+                n.rawText.toLowerCase().includes(search.trim().toLowerCase()),
+              )}
+            />
+          )}
+        </main>
       </div>
 
-      {insight ? <div className="insight-card">{insight}</div> : null}
-
-      <TaskBoard
-        tasks={visibleTasks}
-        onStatusChange={handleStatusChange}
-        onPriorityChange={handlePriorityChange}
-      />
+      {pendingUpdates.length > 0 && (
+        <UpdateConfirmationModal
+          proposedUpdates={pendingUpdates}
+          onConfirm={handleConfirmUpdates}
+          onDismiss={dismissPendingUpdates}
+        />
+      )}
     </div>
   );
 }
-
-export default App;

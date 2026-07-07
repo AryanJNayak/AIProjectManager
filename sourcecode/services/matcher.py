@@ -8,15 +8,13 @@ SIMILARITY_THRESHOLD = 50  # 0-100 scale; tune based on real usage
 def find_candidate_tasks(
     raw_text: str, open_tasks: List[Dict[str, Any]], threshold: int = SIMILARITY_THRESHOLD
 ) -> List[Dict[str, Any]]:
-    """
-    Cheap pre-filter before the LLM call: scores each open task's description
-    (and owner, if present) against the raw note text, keeping only tasks
-    above `threshold`. This keeps the prompt small/cheap even for PMs with
-    large open-task backlogs -- the LLM still does the final new/update call,
-    this just narrows the candidate set it has to consider.
+    """Purpose: Pre-filter open tasks that likely match a raw note before calling the LLM.
 
-    open_tasks: list of dicts with at least {id, description, owner}
-    Returns: subset of open_tasks that look plausibly related to raw_text.
+    Inputs: The raw note text, a list of open tasks, and an optional similarity threshold.
+
+    Outputs: A sorted list of candidate tasks that are likely related to the note.
+
+    Example: find_candidate_tasks("Fix the onboarding flow", open_tasks)
     """
     candidates = []
     for task in open_tasks:

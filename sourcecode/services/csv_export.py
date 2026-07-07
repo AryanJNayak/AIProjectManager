@@ -7,6 +7,14 @@ from models.task import Task
 
 
 def tasks_to_csv(tasks: List[Task]) -> io.StringIO:
+    """Purpose: Convert a list of tasks into CSV content for export.
+
+    Inputs: A list of Task objects.
+
+    Outputs: An in-memory StringIO buffer containing CSV-formatted task data.
+
+    Example: tasks_to_csv([task_one, task_two])
+    """
     rows = [
         {
             "id": t.id,

@@ -19,6 +19,14 @@ router = APIRouter(prefix="/api/extract", tags=["extract"])
 
 @router.post("", response_model=ExtractResponse)
 def run_extraction(payload: ExtractRequest, db: Session = Depends(get_db)):
+    """Purpose: Process a raw note, match it with existing open tasks, and create extraction results.
+
+    Inputs: An ExtractRequest containing the note text and the database session.
+
+    Outputs: An ExtractResponse containing newly created tasks and proposed updates for existing tasks.
+
+    Example: POST /api/extract with a note such as "Review the API endpoint by Friday".
+    """
     # 1. Save the raw note (Section 5.1 - notes table)
     note = Note(raw_text=payload.text)
     db.add(note)
@@ -87,6 +95,14 @@ def run_extraction(payload: ExtractRequest, db: Session = Depends(get_db)):
 
 @router.post("/confirm", response_model=ConfirmResponse)
 def confirm_updates(payload: ConfirmRequest, db: Session = Depends(get_db)):
+    """Purpose: Apply confirmed updates to existing tasks after extraction review.
+
+    Inputs: A ConfirmRequest with the selected task updates and the database session.
+
+    Outputs: A ConfirmResponse containing the updated task records.
+
+    Example: POST /api/extract/confirm with approved task changes.
+    """
     updated: list[TaskOut] = []
 
     for sourcecoderoved in payload.sourcecoderoved:

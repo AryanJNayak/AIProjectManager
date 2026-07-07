@@ -39,13 +39,18 @@ class TaskUpdate(BaseModel):
     status: Optional[Status] = None
 
 
-class TaskOut(TaskBase):
+class TaskOut(BaseModel):
     id: int
-    note_id: Optional[int] = None
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    note_id: Optional[int] = Field(default=None, serialization_alias="noteId")
+    description: str
+    due_date: Optional[date] = Field(default=None, serialization_alias="dueDate")
+    owner: Optional[str] = None
+    priority: Priority = Priority.Medium
+    status: Status = Status.todo
+    created_at: datetime = Field(serialization_alias="createdAt")
+    updated_at: Optional[datetime] = Field(default=None, serialization_alias="updatedAt")
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
 # ---------- LLM extraction contract (Section 5.2 of the plan) ----------
@@ -101,3 +106,11 @@ class ConfirmRequest(BaseModel):
 
 class ConfirmResponse(BaseModel):
     updated: List[TaskOut]
+
+class NoteOut(BaseModel):
+    id: int
+    raw_text: str = Field(serialization_alias="rawText")
+    created_at: datetime = Field(serialization_alias="createdAt")
+    task_count: int = Field(serialization_alias="taskCount")
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)

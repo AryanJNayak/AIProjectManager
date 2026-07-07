@@ -13,7 +13,14 @@ Base = declarative_base()
 
 
 def get_db():
-    """FastAPI dependency: yields a DB session, closes it after the request."""
+    """Purpose: Provide a database session for each FastAPI request.
+
+    Inputs: None.
+
+    Outputs: A SQLAlchemy session object that is closed after the request completes.
+
+    Example: Used as a dependency in route handlers such as list_tasks and update_task.
+    """
     db = SessionLocal()
     try:
         yield db

@@ -19,6 +19,14 @@ def list_tasks(
     priority: Optional[Priority] = None,
     db: Session = Depends(get_db),
 ):
+    """Purpose: Retrieve tasks from the database using optional filters.
+
+    Inputs: The optional owner, status, priority filters, and the database session.
+
+    Outputs: A list of task records sorted by most recently created first.
+
+    Example: GET /api/tasks?owner=alice&status=open
+    """
     query = db.query(Task)
     if owner:
         query = query.filter(Task.owner == owner)
@@ -36,6 +44,14 @@ def export_tasks(
     priority: Optional[Priority] = None,
     db: Session = Depends(get_db),
 ):
+    """Purpose: Export filtered tasks as a CSV file for download.
+
+    Inputs: Optional owner, status, and priority filters plus the database session.
+
+    Outputs: A streaming CSV response attached for download.
+
+    Example: GET /api/tasks/export?status=open
+    """
     query = db.query(Task)
     if owner:
         query = query.filter(Task.owner == owner)
@@ -55,6 +71,14 @@ def export_tasks(
 
 @router.get("/{task_id}", response_model=TaskOut)
 def get_task(task_id: int, db: Session = Depends(get_db)):
+    """Purpose: Retrieve a single task by its identifier.
+
+    Inputs: The task_id and the database session.
+
+    Outputs: The matching task record or a 404 error if the task does not exist.
+
+    Example: GET /api/tasks/42
+    """
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -63,6 +87,14 @@ def get_task(task_id: int, db: Session = Depends(get_db)):
 
 @router.patch("/{task_id}", response_model=TaskOut)
 def update_task(task_id: int, payload: TaskUpdate, db: Session = Depends(get_db)):
+    """Purpose: Apply partial updates to an existing task.
+
+    Inputs: The task_id, a TaskUpdate payload with fields to change, and the database session.
+
+    Outputs: The updated task record or a 404 error if the task does not exist.
+
+    Example: PATCH /api/tasks/42 with {"status": "done"}
+    """
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -78,6 +110,14 @@ def update_task(task_id: int, payload: TaskUpdate, db: Session = Depends(get_db)
 
 @router.delete("/{task_id}", status_code=204)
 def delete_task(task_id: int, db: Session = Depends(get_db)):
+    """Purpose: Delete a task from the database by identifier.
+
+    Inputs: The task_id and the database session.
+
+    Outputs: A 204 success response or a 404 error if the task does not exist.
+
+    Example: DELETE /api/tasks/42
+    """
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")

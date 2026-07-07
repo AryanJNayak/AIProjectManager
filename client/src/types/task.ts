@@ -10,6 +10,8 @@ export interface Task {
   status: TaskStatus;
   dueDate?: string;
   source?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface TaskFilters {
@@ -28,4 +30,19 @@ export interface ProposedUpdate {
 export interface ExtractionResponse {
   created: Task[];
   proposedUpdates: ProposedUpdate[];
+}
+
+// A single raw note submission -- shown in the "Notes" history view
+export interface NoteEntry {
+  id: number;
+  rawText: string;
+  createdAt: string;
+  taskCount: number;
+}
+
+export type SortDirection = 'asc' | 'desc';
+
+export interface SortState<T> {
+  key: keyof T | null;
+  direction: SortDirection;
 }

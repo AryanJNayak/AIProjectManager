@@ -47,6 +47,14 @@ Candidate existing open tasks (id, description, owner):
 
 
 def _format_candidates(candidates: List[Dict[str, Any]]) -> str:
+    """Purpose: Format candidate tasks into a string for the LLM prompt.
+
+    Inputs: A list of candidate task dictionaries.
+
+    Outputs: A newline-separated string suitable for prompt injection.
+
+    Example: _format_candidates([{"id": 1, "description": "Write docs", "owner": "Ana"}])
+    """
     if not candidates:
         return "(none)"
     lines = [
@@ -57,6 +65,14 @@ def _format_candidates(candidates: List[Dict[str, Any]]) -> str:
 
 
 def build_chain():
+    """Purpose: Build the LangChain pipeline for structured task extraction.
+
+    Inputs: None.
+
+    Outputs: A runnable prompt-to-structured-output chain backed by the configured LLM.
+
+    Example: chain = build_chain()
+    """
     llm = ChatGoogleGenerativeAI(
         model="gemini-2.5-flash",
         google_api_key=settings.GOOGLE_API_KEY,
@@ -75,11 +91,13 @@ def build_chain():
 
 
 def extract_tasks(raw_text: str, candidate_tasks: List[Dict[str, Any]]) -> ExtractionResult:
-    """
-    Runs the extraction chain. On a validation failure from the structured
-    parser, retries once with an explicit correction prompt (a lightweight
-    stand-in for OutputFixingParser, since with_structured_output already
-    handles most schema coercion under the hood).
+    """Purpose: Extract structured tasks from raw notes using the configured LLM chain.
+
+    Inputs: The raw note text and a list of candidate existing tasks.
+
+    Outputs: An ExtractionResult containing proposed new tasks and updates.
+
+    Example: extract_tasks("Ship the onboarding doc by Friday", candidates)
     """
     chain = build_chain()
     inputs = {

@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import settings
 from db.database import Base, engine
 from models import task  # noqa: F401 -- registers models on Base.metadata
-from api import tasks, extract
+from api import tasks, extract, notes
 
 app = FastAPI(title="Mini AI Project Manager Assistant")
 
@@ -17,14 +17,31 @@ app.add_middleware(
 
 app.include_router(tasks.router)
 app.include_router(extract.router)
+app.include_router(notes.router)
 
 @app.on_event("startup")
 def on_startup():
+    """Purpose: Initialize database tables when the FastAPI app starts.
+
+    Inputs: None.
+
+    Outputs: None. The function creates all SQLAlchemy models in the database.
+
+    Example: The application startup event runs this function automatically on launch.
+    """
     # MVP: create tables directly (no Alembic migrations per project plan Section 4.3)
     Base.metadata.create_all(bind=engine)
 
 @app.get("/health")
 def health():
+    """Purpose: Return a simple health-check response for the API.
+
+    Inputs: None.
+
+    Outputs: A JSON object with the application status.
+
+    Example: GET /health -> {"status": "ok"}
+    """
     return {"status": "ok"}
 
 if __name__ == "__main__":
