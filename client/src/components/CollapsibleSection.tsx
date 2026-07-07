@@ -29,7 +29,7 @@ export function CollapsibleSection({
         <div className="flex items-center gap-3">
           <svg
             viewBox="0 0 20 20"
-            className={`h-4 w-4 flex-shrink-0 text-slate-500 transition-transform duration-200 ${
+            className={`h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200 ${
               open ? "rotate-90" : ""
             }`}
             fill="currentColor"

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { Task, TaskDraft } from '../types/task';
+import { useState } from "react";
+import type { Task, TaskDraft } from "../types/task";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -24,19 +24,19 @@ interface ConfirmChangesDialogProps {
 // ---------------------------------------------------------------------------
 
 const FIELD_LABELS: Record<string, string> = {
-  priority: 'Priority',
-  status: 'Status',
-  owner: 'Owner',
-  dueDate: 'Due Date',
+  priority: "Priority",
+  status: "Status",
+  owner: "Owner",
+  dueDate: "Due Date",
 };
 
 function buildDiff(task: Task, draft: TaskDraft): FieldDiff[] {
   return (Object.keys(draft) as Array<keyof TaskDraft>)
-    .filter(key => draft[key] !== task[key as keyof Task])
-    .map(key => ({
+    .filter((key) => draft[key] !== task[key as keyof Task])
+    .map((key) => ({
       label: FIELD_LABELS[key] ?? key,
-      from: String(task[key as keyof Task] ?? '—') || '—',
-      to: String(draft[key] ?? '—') || '—',
+      from: String(task[key as keyof Task] ?? "—") || "—",
+      to: String(draft[key] ?? "—") || "—",
     }));
 }
 
@@ -54,7 +54,7 @@ export function ConfirmChangesDialog({
   const diffs = buildDiff(task, draft);
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
       <div
         className="w-full max-w-sm rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl"
         role="dialog"
@@ -94,9 +94,11 @@ export function ConfirmChangesDialog({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
-                {diffs.map(d => (
+                {diffs.map((d) => (
                   <tr key={d.label}>
-                    <td className="py-2 pr-4 font-medium text-slate-300">{d.label}</td>
+                    <td className="py-2 pr-4 font-medium text-slate-300">
+                      {d.label}
+                    </td>
                     <td className="py-2 pr-4">
                       <span className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-xs text-slate-400 line-through decoration-slate-600">
                         {d.from}
@@ -130,7 +132,7 @@ export function ConfirmChangesDialog({
             disabled={isSubmitting || diffs.length === 0}
             className="rounded-lg bg-teal-400 px-5 py-2 text-sm font-semibold text-slate-950 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isSubmitting ? 'Saving…' : 'Apply Changes'}
+            {isSubmitting ? "Saving…" : "Apply Changes"}
           </button>
         </div>
       </div>
