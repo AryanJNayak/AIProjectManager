@@ -1,0 +1,31 @@
+export type TaskStatus = 'To Do' | 'In Progress' | 'Done';
+export type TaskPriority = 'High' | 'Medium' | 'Low';
+
+export interface Task {
+  id: number;
+  title: string;
+  description: string;
+  owner: string;
+  priority: TaskPriority;
+  status: TaskStatus;
+  dueDate?: string;
+  source?: string;
+}
+
+export interface TaskFilters {
+  owner: string;
+  status: TaskStatus | 'All';
+  priority: TaskPriority | 'All';
+}
+
+export interface ProposedUpdate {
+  taskId: number;
+  description: string;
+  current: Partial<Pick<Task, 'priority' | 'dueDate' | 'owner'>>;
+  changes: Partial<Pick<Task, 'priority' | 'dueDate' | 'owner'>>;
+}
+
+export interface ExtractionResponse {
+  created: Task[];
+  proposedUpdates: ProposedUpdate[];
+}
